@@ -1,10 +1,25 @@
 # Lumo
 
-A macOS menu-bar controller for Philips Hue. Rooms, scenes, per-light colour and
-brightness, gradients and effects — from the menu bar.
+A macOS menu-bar controller for Philips Hue that talks only to your lights.
 
-Everything runs on the local network. No telemetry, no internet connections, no
-third-party dependencies.
+Smart-home software normally asks you to choose: a house full of useful technology,
+or your privacy. Lumo does not make that trade. It speaks to the bridge on your own
+network and to nothing else — no account, no cloud, no telemetry, no crash
+reporting, no update check, no analytics. Nothing about your home leaves your
+machine, including the fact that you are home.
+
+It has **no third-party dependencies at all**. Apple frameworks only, so there is no
+supply chain to audit and no package that can be compromised on your behalf. The
+bridge connection is pinned to your bridge's own certificate, and its key is kept in
+the Keychain.
+
+These are checked, not claimed: CI fails the build if a hard-coded host appears in
+the source, if a network API is used outside the reviewed transport, or if a remote
+package is declared. See [SECURITY.md](SECURITY.md) and
+[CONSTITUTION.md](CONSTITUTION.md).
+
+Rooms, scenes, per-light colour and brightness, gradients and effects — from the
+menu bar.
 
 <p align="center">
   <img src="docs/screenshots/rooms-dark.png" width="330" alt="Lumo's popover showing two rooms, each with its own switch and scene chips">
@@ -126,8 +141,18 @@ resize handle: menu-bar popovers on macOS are not resizable.
 
 | Mode | State |
 |---|---|
-| Bridge | Working. Rooms, scenes, per-light control. Default when paired. |
-| Bluetooth | Discovery works; commands are rejected. The bulbs bond to the Hue app, and macOS never presents a pairing prompt, so `Encryption is insufficient` is returned for every write. |
+| Bridge | Rooms, scenes, per-light control. The default once paired. |
+| Bluetooth | Implemented and working against unbonded bulbs, but unavailable while the Hue app holds the bond. |
+
+A Hue bulb accepts control from one bonded controller. Where the Hue app has already
+bonded with a bulb, it keeps that bond: macOS is not offered a pairing exchange, and
+every write is refused with `Encryption is insufficient`. This is a property of the
+bulbs, not a gap in the transport — `Sources/LumoBLE` implements the full control
+service and drives a bulb that is free to bond.
+
+The bridge is the better path regardless: no bond, no range limit, no ten-bulb
+ceiling, and it reports changes made from anywhere, including the Hue app and wall
+switches.
 
 `SimulatedTransport` backs the tests and the snapshot renderer. It is not
 user-selectable.
@@ -142,10 +167,10 @@ CI builds both variants, runs the tests, and runs `tools/check-boundaries.sh` an
 `tools/check-no-secrets.sh` on every push.
 
 Contract tests in `Tests/LumoBridgeTests` decode recorded bridge responses. The
-bridge is third-party firmware whose payload shape changes without notice; each
-fixture covers something that broke this app or would have — partial events, rooms
-listing devices rather than lights, `status.active`, gradient point counts. They need
-no hardware.
+bridge is third-party firmware whose payload shape changes without notice, so the
+fixtures cover the parts most likely to shift: partial events, rooms listing devices
+rather than lights, `status.active`, and gradient point counts. They need no
+hardware.
 
 The hardware suite needs a bridge on the network: `--verify-bridge`, `--test-lights`,
 `--test-scene-switch`, `--test-relocate`, `--test-scenes`.
