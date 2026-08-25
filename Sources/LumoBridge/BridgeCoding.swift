@@ -172,14 +172,10 @@ public enum BridgeCoding {
     /// The colour a scene chip should carry: the first lit light the scene sets.
     ///
     /// Read from the scene's own actions, so "Candlelight" is warm because the scene
-    /// is warm. The chip colour used to be a hash of the scene's *name* — stable and
-    /// distinguishable, but saying nothing true. Harmless as an arbitrary marker;
-    /// actively misleading once it tints glass, where it reads as a statement about
-    /// the light.
+    /// is warm.
     ///
     /// A scene can set several lights to different colours and one chip cannot show
-    /// that, so this takes the first rather than averaging — averaging two good
-    /// colours produces one muddy one.
+    /// that, so this takes the first rather than averaging, which would muddy them.
     public static func representativeColour(of scene: [String: Any]) -> LightColor? {
         guard let actions = scene["actions"] as? [[String: Any]] else { return nil }
         for entry in actions {

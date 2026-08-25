@@ -1,8 +1,9 @@
 #!/bin/bash
 # Build Lumo.app.
 #
-# See spike/FINDINGS.md for why the Info.plist is both embedded in the Mach-O and
-# copied into the bundle, and why --build-system native is pinned.
+# The Info.plist is both embedded in the Mach-O (via -sectcreate) and copied into
+# the bundle: TCC reads the embedded copy, which is what CoreBluetooth's usage
+# description must come from, while LaunchServices reads the bundle copy.
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$PWD"
