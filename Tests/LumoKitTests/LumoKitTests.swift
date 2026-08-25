@@ -7,6 +7,19 @@ import AppKit
 /// none of this is testable against a physical bulb someone might have switched
 /// off at the wall.
 
+/// Waits for a condition, up to `timeout`. Returns false if it never held.
+@MainActor
+private func poll(timeout: Duration = .seconds(10),
+                  every interval: Duration = .milliseconds(50),
+                  until condition: () -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if condition() { return true }
+        try? await Task.sleep(for: interval)
+    }
+    return condition()
+}
+
 @Suite("Colour science")
 struct ColorScienceTests {
 
@@ -52,8 +65,8 @@ struct LightStoreTests {
         await transport.setFaults(faults)
         let store = LightStore(transport: transport)
         await store.start()
-        // Discovery is staggered to exercise appearance animation; wait it out.
-        try? await Task.sleep(for: .milliseconds(500))
+        // Discovery is staggered to exercise appearance animation.
+        _ = await poll { store.lights.count == 2 }
         return (store, transport)
     }
 
@@ -96,10 +109,8 @@ struct LightStoreTests {
         await transport.setFaults(faults)
 
         store.setBrightness(0.1, for: id)
-        try await Task.sleep(for: .milliseconds(300))
-
+        #expect(await poll { store.lastError != nil })
         #expect(store.lights[0].state.brightness == original)
-        #expect(store.lastError != nil)
     }
 
     @Test("A room switch turns every light in the room off")
@@ -134,9 +145,7 @@ struct LightStoreTests {
         let scene = try #require(store.scenes.first)
 
         store.deleteScene(scene)
-        try await Task.sleep(for: .milliseconds(200))
-
-        #expect(store.scenes.isEmpty)
+        #expect(await poll { store.scenes.isEmpty })
     }
 
     @Test("Recalling a scene reconciles from the transport, not from a guess")
@@ -147,15 +156,16 @@ struct LightStoreTests {
         let scene = try #require(store.scenes.first)
 
         store.setRoomPower(false, room: room)
-        try await Task.sleep(for: .milliseconds(200))
+        _ = await poll { store.lights.allSatisfy { !$0.state.isOn } }
 
         store.recall(scene)
-        // recall() deliberately waits before resyncing, so the bridge has settled.
-        try await Task.sleep(for: .milliseconds(1000))
 
-        // The simulator's recall turns everything on; the store must pick that up
-        // by reading back rather than predicting it.
-        #expect(store.lights.allSatisfy { $0.state.isOn })
+        // The simulator's recall turns everything on; the store must pick that up by
+        // reading back rather than predicting it. Waited for rather than slept
+        // through: recall() settles a burst, waits out the transition and then
+        // resyncs, which took longer than a fixed sleep allowed on a loaded runner.
+        let settled = await poll { store.lights.allSatisfy { $0.state.isOn } }
+        #expect(settled)
     }
 }
 
@@ -225,7 +235,7 @@ struct ResyncTests {
         let transport = SimulatedTransport()
         let store = LightStore(transport: transport)
         await store.start()
-        try await Task.sleep(for: .milliseconds(500))
+        _ = await poll { store.lights.count == 2 }
 
         let id = store.lights[0].id
         var faults = SimulatedTransport.Faults()
@@ -233,7 +243,7 @@ struct ResyncTests {
         await transport.setFaults(faults)
 
         store.setBrightness(0.05, for: id)
-        try await Task.sleep(for: .milliseconds(500))
+        #expect(await poll { store.lastError != nil })
 
         // The transport never accepted the change, so the store must show what the
         // transport reports — not the optimistic value, and not a stale rollback.
@@ -246,7 +256,7 @@ struct ResyncTests {
         let transport = SimulatedTransport()
         let store = LightStore(transport: transport)
         await store.start()
-        try await Task.sleep(for: .milliseconds(500))
+        _ = await poll { store.lights.count == 2 }
 
         let id = store.lights[0].id
         // Somebody else — the Hue app, a wall switch — changes the light.
