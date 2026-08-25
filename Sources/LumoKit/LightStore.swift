@@ -245,11 +245,10 @@ public final class LightStore {
 
     /// Applies a scene, coalescing rapid presses.
     ///
-    /// Hue applies a scene as a *transition*. Recalling a second scene while the
-    /// first is still in flight interrupts it, and the lamps stop wherever they had
-    /// got to — flipping between two scenes repeatedly left one lamp at 28% and its
-    /// pair at 32%, matching neither scene. Only the last scene in a burst is
-    /// actually sent, and a stale resync can no longer overwrite a newer one.
+    /// Hue applies a scene as a transition. Recalling a second scene mid-transition
+    /// interrupts the first and leaves lamps at intermediate values, matching neither
+    /// scene. Only the last scene in a burst is sent, and a stale resync cannot
+    /// overwrite a newer one.
     public func recall(_ scene: RoomScene) {
         pendingRecall?.cancel()
         recallGeneration += 1

@@ -94,8 +94,8 @@ public struct LightState: Sendable, Equatable, Codable, Hashable {
 ///
 /// The bridge pushes events carrying only the fields that changed — a scene recall
 /// sends colour without `on` or `dimming`. Rebuilding a whole `LightState` from one
-/// of those defaults the absent fields and silently reports lights as off at 50%,
-/// so updates must be merged, never substituted.
+/// defaults the absent fields, reporting lights as off at 50%, so updates must be
+/// merged, never substituted.
 public struct LightStateDelta: Sendable, Equatable {
     public var isOn: Bool?
     public var brightness: Double?

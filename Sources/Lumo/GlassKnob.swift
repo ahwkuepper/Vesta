@@ -2,14 +2,12 @@ import SwiftUI
 
 /// Whether Liquid Glass is drawn.
 ///
-/// `glassEffect` nested inside the popover's scroll view hangs the offscreen
-/// snapshot renderer indefinitely — verified by bisection, and it renders correctly
-/// in a simple hosted view, so it is specific to that nesting. The live app is
-/// unaffected; only documentation rendering is, so snapshots draw the fallback.
+/// `glassEffect` produces nothing when a view is drawn in-process, because the
+/// window server composites it. The snapshot renderer sets this false when it
+/// cannot capture through the compositor; otherwise the handle renders as a hole.
 ///
-/// The check is behind `AnyView` deliberately. Gating with `@Environment` was not
-/// enough: the glass branch still lands in the view tree's type, and merely being
-/// there is sufficient to hang the render.
+/// Gating happens through `AnyView` rather than `@Environment` so the glass branch
+/// leaves the view tree entirely.
 enum GlassSettings {
     nonisolated(unsafe) static var isEnabled = true
 }

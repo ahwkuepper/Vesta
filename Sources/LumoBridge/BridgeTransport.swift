@@ -4,10 +4,9 @@ import LumoKit
 
 /// Talks to a Hue Bridge over the local CLIP v2 API.
 ///
-/// This is the transport swap PLAN.md anticipated: it conforms to the same
-/// `LightTransport` as `BLETransport`, so nothing above it changes. Unlike BLE it
-/// needs no bond, has no range limit, no ten-bulb ceiling, and reports state
-/// changes made from anywhere — the Hue app, a dimmer switch, a routine.
+/// Conforms to the same `LightTransport` as `BLETransport`. Unlike BLE it needs no
+/// bond, has no range limit or ten-bulb ceiling, and reports state changes made from
+/// anywhere — the Hue app, a dimmer switch, a routine.
 public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendable {
 
     /// Mutable: the bridge's address changes when its DHCP lease does, and the

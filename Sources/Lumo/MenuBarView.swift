@@ -96,10 +96,8 @@ struct MenuBarView: View {
 
     /// How tall the popover may be, measured from the screen alone.
     ///
-    /// This deliberately does not consult the popover's own frame. It used to, and
-    /// that created a feedback loop: the popover's position fed the height, the
-    /// height resized the popover, and NSPopover repositioned it again — so it crept
-    /// upward every time content grew, until only the lower half was on screen.
+    /// Must not consult the popover's own frame: position would feed height, height
+    /// would resize the popover, and NSPopover would reposition it again.
     private var maxAvailableHeight: Double {
         let screen = window?.screen ?? NSScreen.main
         let visible = screen?.visibleFrame.height ?? 900
@@ -114,20 +112,12 @@ struct MenuBarView: View {
 
     /// The popover is exactly as tall as its contents, up to the room available.
     ///
-    /// It briefly had a drag-to-resize grabber, which was removed. Resizing a
-    /// MenuBarExtra popover from inside SwiftUI could not be made to look right:
-    /// each change lays the content out one pass before the window follows, and
-    /// during that pass oversized content is drawn *centred* in the old window —
-    /// measured at content y=-160.9 h=497.7 inside a 176pt window. That reads as
-    /// the popover growing from the top and bottom at once, and a drag repeats it
-    /// every frame, which is what the vibration was. Sizing to content deletes the
-    /// control and the defect together, and still answers the original complaint:
-    /// a handful of lamps no longer needs scrolling.
+    /// There is no resize handle. Menu-bar popovers on macOS are not resizable, and
+    /// sizing to content means a handful of lamps needs no scrolling.
     private var contentHeight: Double {
         guard measuredContent > 0 else { return maxAvailableHeight }
-        // Offscreen renders have no screen to be constrained by, and clipping the
-        // documentation shots to a notional screen height is how the expanded
-        // controls ended up cut off mid-row in the README.
+        // Offscreen renders have no screen to be constrained by; clipping them to a
+        // notional screen height truncates the shot mid-row.
         return rendersFullHeight ? measuredContent
                                  : min(measuredContent, maxAvailableHeight)
     }
@@ -176,9 +166,7 @@ struct MenuBarView: View {
 
     /// Says what went wrong, at the bottom where it cannot displace the controls.
     ///
-    /// Failures used to be recorded and never shown, so a refused write looked like
-    /// the app ignoring you. It clears itself after a few seconds, and can be
-    /// dismissed — an error about one lamp should not sit there all evening.
+    /// Clears itself after a few seconds and can be dismissed.
     private func errorBanner(_ error: UserFacingError) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")

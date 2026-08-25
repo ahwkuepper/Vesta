@@ -139,24 +139,14 @@ enum Snapshot {
         size = hosting.fittingSize
         hosting.frame = NSRect(origin: .zero, size: size)
 
-        // On screen, and captured through the window server rather than drawn by us.
+        // Shown on screen and captured through the window server. Liquid Glass is
+        // composited, not drawn by the view tree, so an in-process draw renders the
+        // slider handles as holes.
         //
-        // `cacheDisplay` walks the view tree and draws it into a bitmap in-process.
-        // Liquid Glass is not drawn by the view tree at all — the compositor
-        // produces it, sampling whatever sits behind the layer. So a cacheDisplay
-        // capture came back with a *hole* where the slider handle should be, and the
-        // documentation shots quietly showed the macOS 14 fallback while claiming to
-        // show the app. Asking the compositor for the frame it actually rendered is
-        // the only way to photograph glass.
-        //
-        // The backdrop matters as much as the capture. Glass refracts what is behind
-        // it, so hosting the view on a flat opaque panel made the slider handles read
-        // as dark blobs — nothing like the app, where they sit in a translucent
-        // popover over the desktop. The window therefore uses the popover's own
-        // material, over a fixed gradient standing in for a desktop, and the capture
-        // takes that region of the display rather than the window alone: with
-        // `.behindWindow` blending, the window by itself does not contain its own
-        // appearance.
+        // Glass refracts what is behind it, so the window uses the popover's own
+        // material over a fixed gradient standing in for a desktop. The capture takes
+        // that region of the display rather than the window alone: with
+        // `.behindWindow` blending the window does not contain its own appearance.
         let screen = NSScreen.main ?? NSScreen.screens[0]
         let backdrop = makeBackdropWindow(on: screen, appearance: appearance)
         backdrop.orderFrontRegardless()
@@ -196,10 +186,9 @@ enum Snapshot {
         window.displayIfNeeded()
         try await Task.sleep(for: .milliseconds(400))
 
-        // Compositor capture when it is permitted, in-process drawing when it is
-        // not. The fallback is not silent: producing glass-less images while the
-        // README claims to show the app is the exact failure this routine already
-        // shipped once, so an unglassed run says so on every file.
+        // Compositor capture when permitted, in-process drawing when not. The
+        // fallback announces itself per file: an image without glass does not look
+        // like the app, and must not be mistaken for it.
         let bitmap: NSBitmapImageRep
         do {
             bitmap = NSBitmapImageRep(
@@ -382,9 +371,8 @@ enum Snapshot {
         configuration.showsCursor = false
         configuration.captureResolution = .best
 
-        // Retry: back to back captures fail intermittently, and a failure here falls
-        // back to an in-process draw, which silently drops the glass. Two of eight
-        // images came out that way before this loop existed.
+        // Back-to-back captures fail intermittently, and a failure here falls back to
+        // an in-process draw, which drops the glass.
         var lastError: Error = SnapshotError.windowNotShareable
         for attempt in 0..<3 {
             do {
