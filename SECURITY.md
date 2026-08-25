@@ -1,8 +1,8 @@
 # Security
 
-Lumo controls things in someone's home from a machine on their network. It is open
-source, so its code is also a supply chain into that home. This is what it currently
-guarantees, and what has to change before it accepts device modules from strangers.
+Lumo controls devices in someone's home from a machine on their network. Its code is
+therefore a supply chain into that home. This is what holds today, and what must
+change before it accepts device modules from strangers.
 
 ## Threat model
 
@@ -60,17 +60,16 @@ Each item below closes a hole that opens the moment someone else's module ships.
    `dev.lumo.Lumo.<module>` and a module is handed only its own. A Kasa module must
    not be able to read the Hue app key.
 4. **A device-authentication statement per module.** Hue pins a certificate. Kasa's
-   legacy local protocol has none at all — measured on a real network, a broadcast on
-   UDP 9999 enumerated four devices with no credential, and the plugs volunteered the
-   home's real latitude and longitude, `deviceId`, `oemId` and MAC to anyone
-   listening.
-   Every module must document what it can and cannot prove about the device it is
-   talking to, the UI must not imply more, and **fields like location must never
-   reach a log or a diagnostics report** — the report is designed to be pasted in
-   public.
+   legacy local protocol has none: a UDP broadcast on port 9999 enumerates devices
+   with no credential, and the plugs return the home's latitude and longitude,
+   `deviceId`, `oemId` and MAC to anyone on the LAN. Every module must document what
+   it can and cannot prove about the device it talks to, the UI must not imply more,
+   and **fields like location must never reach a log or a diagnostics report**.
 5. **Repository controls.** Protected `main`, required review, `CODEOWNERS` over
    `tools/`, `Package.swift`, entitlements and any transport; signed commits; no
    `pull_request_target`; no CI secrets exposed to fork PRs; secret scanning.
+   Published snapshots reach `main` only through a CI-gated pull request from
+   `staging` — see `tools/publish.sh`.
 6. **A review checklist for new modules**, covering: no new dependencies, no new
    entitlements, all I/O through the choke point, no telemetry, total decoding,
    bounded response sizes and timeouts, credentials scoped, and a stated

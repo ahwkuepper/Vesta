@@ -78,8 +78,7 @@ enum Diagnostics {
         return formatter.string(from: .now)
     }
 
-    /// How long ago, or "never" — the distinction that matters when a connection has
-    /// quietly died.
+    /// How long ago, or "never".
     private static func age(_ date: Date?) -> String {
         guard let date else { return "never" }
         let seconds = Int(Date.now.timeIntervalSince(date))

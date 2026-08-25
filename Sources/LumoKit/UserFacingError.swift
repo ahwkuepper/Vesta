@@ -2,11 +2,8 @@ import Foundation
 
 /// A failure worth showing someone.
 ///
-/// The previous `lastError: String?` was written in eight places and read in none,
-/// so every rejected write, failed scene save and partially-applied room switch
-/// vanished silently — the app looked broken with no explanation. This carries
-/// enough to say what failed and when, and is identifiable so the UI can animate one
-/// banner out and the next in.
+/// Carries enough to say what failed and when. Identifiable, so the UI can animate
+/// one banner out and the next in.
 public struct UserFacingError: Identifiable, Equatable, Sendable {
     public let id = UUID()
     /// What the user was trying to do, in their terms: "Couldn't save the scene".

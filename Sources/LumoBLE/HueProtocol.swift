@@ -8,7 +8,7 @@ import LumoKit
 /// Wire format for the Hue BLE control service.
 ///
 /// UUIDs and semantics confirmed empirically against two LCB002 bulbs
-/// (firmware 1.163.1) — see spike/FINDINGS.md. All characteristics also support
+/// (firmware 1.163.1). All characteristics also support
 /// `notify`, which is why this app subscribes rather than polls.
 public enum HueProtocol {
 
