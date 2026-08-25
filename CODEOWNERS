@@ -1,0 +1,13 @@
+# Every change needs a review from the owner. GitHub enforces this only when branch
+# protection requires review from Code Owners — the file alone does nothing.
+*                       @ahwkuepper
+
+# Security-relevant surfaces, called out so a reviewer knows what they are holding.
+/SECURITY.md            @ahwkuepper
+/CONSTITUTION.md        @ahwkuepper
+/tools/                 @ahwkuepper
+/.github/               @ahwkuepper
+/entitlements.plist     @ahwkuepper
+/Info.plist             @ahwkuepper
+/Sources/LumoBridge/    @ahwkuepper
+/Sources/Lumo/Diagnostics.swift @ahwkuepper

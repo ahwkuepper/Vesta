@@ -1,0 +1,15 @@
+# SwiftPM build products (both the app and the spike)
+.build/
+.swiftpm/
+Package.resolved
+
+# Assembled .app bundles — reproducible via ./build.sh
+build/
+
+# Scratch snapshot renders. The curated ones in docs/screenshots are tracked,
+# because the README needs them to render on GitHub.
+shots/
+
+.DS_Store
+xcuserdata/
+*.xcuserdatad

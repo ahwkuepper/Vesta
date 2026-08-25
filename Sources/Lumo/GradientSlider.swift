@@ -1,0 +1,112 @@
+import SwiftUI
+import LumoKit
+
+extension Color {
+    init(_ rgb: ColorScience.RGB) {
+        self.init(red: rgb.r, green: rgb.g, blue: rgb.b)
+    }
+}
+
+/// A slider whose track previews the result of moving it.
+///
+/// The stock `Slider` is the right control for an abstract quantity. This app
+/// controls something you can look at, so the track shows the actual light: black
+/// to the bulb's colour for brightness, and the real Planckian ramp for colour
+/// temperature. It also lets you drag from anywhere on the track rather than
+/// requiring you to grab a small thumb.
+struct GradientSlider: View {
+    @Binding var value: Double
+    var range: ClosedRange<Double> = 0...1
+    var gradient: Gradient
+    var label: String
+    /// Formats the value for VoiceOver and the trailing readout.
+    var format: (Double) -> String
+    var isEnabled: Bool = true
+
+    @State private var isDragging = false
+
+    private var fraction: Double {
+        let span = range.upperBound - range.lowerBound
+        guard span > 0 else { return 0 }
+        return ((value - range.lowerBound) / span).clamped(to: 0...1)
+    }
+
+    var body: some View {
+        GeometryReader { geometry in
+            let width = geometry.size.width
+            let thumbSize: CGFloat = isDragging ? 21 : 18
+            // The handle is a capsule wider than it is tall, so the travel has to be
+            // inset by its width — not its height — or it runs past the track ends.
+            let thumbWidth = thumbSize * 1.55
+            let thumbX = (width - thumbWidth) * fraction + thumbWidth / 2
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(LinearGradient(gradient: gradient, startPoint: .leading, endPoint: .trailing))
+                    .frame(height: 12)
+                    .overlay(Capsule().strokeBorder(.white.opacity(0.10), lineWidth: 0.5))
+
+                GlassKnob(diameter: thumbSize, isActive: isDragging)
+                    .position(x: thumbX, y: geometry.size.height / 2)
+            }
+            .frame(height: geometry.size.height)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        if !isDragging {
+                            withAnimation(.snappy(duration: 0.12)) { isDragging = true }
+                        }
+                        let f = ((drag.location.x - thumbWidth / 2) / (width - thumbWidth))
+                            .clamped(to: 0...1)
+                        value = range.lowerBound + f * (range.upperBound - range.lowerBound)
+                    }
+                    .onEnded { _ in
+                        withAnimation(.snappy(duration: 0.18)) { isDragging = false }
+                    }
+            )
+        }
+        .frame(height: 20)
+        .opacity(isEnabled ? 1 : 0.35)
+        .disabled(!isEnabled)
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityValue(format(value))
+        .accessibilityAdjustableAction { direction in
+            let step = (range.upperBound - range.lowerBound) / 20
+            switch direction {
+            case .increment: value = (value + step).clamped(to: range)
+            case .decrement: value = (value - step).clamped(to: range)
+            @unknown default: break
+            }
+        }
+    }
+}
+
+extension Comparable {
+    func clamped(to r: ClosedRange<Self>) -> Self {
+        min(max(self, r.lowerBound), r.upperBound)
+    }
+}
+
+extension Gradient {
+    /// Black → the light's own colour, so the track previews the actual result.
+    static func brightness(of color: ColorScience.RGB) -> Gradient {
+        Gradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.07), Color(color)])
+    }
+
+    /// The real Planckian locus across the bulb's supported range, warm on the
+    /// left because that is where the low-Kelvin end lives.
+    static var colorTemperature: Gradient {
+        let stops = stride(from: LightColor.miredRange.upperBound,
+                           through: LightColor.miredRange.lowerBound, by: -20)
+            .map { Color(ColorScience.rgb(fromMireds: $0)) }
+        return Gradient(colors: stops)
+    }
+
+    /// Full hue sweep for the colour control.
+    static var hue: Gradient {
+        Gradient(colors: stride(from: 0.0, through: 1.0, by: 0.05)
+            .map { Color(hue: $0, saturation: 0.85, brightness: 1.0) })
+    }
+}
