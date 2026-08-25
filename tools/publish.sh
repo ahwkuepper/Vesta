@@ -74,8 +74,16 @@ else
     COMMIT=$(git commit-tree "$TREE" -m "$MESSAGE")
 fi
 
+# staging is a transient promotion branch. A rebase or squash merge leaves it
+# pointing at commits that no longer exist on main, so it is reset rather than
+# extended whenever it is not genuinely ahead of main.
 echo "==> pushing $COMMIT to $REMOTE/staging"
-git push -q "$REMOTE" "$COMMIT":refs/heads/staging
+if [ "$PARENT" = "$STAGING" ]; then
+    git push -q "$REMOTE" "$COMMIT":refs/heads/staging
+else
+    git push -q --force-with-lease="refs/heads/staging:$STAGING" \
+        "$REMOTE" "$COMMIT":refs/heads/staging
+fi
 
 REPO=$(git remote get-url "$REMOTE" | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')
 echo
