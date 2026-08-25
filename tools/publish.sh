@@ -46,10 +46,19 @@ echo "==> checking the tree"
 git fetch -q "$REMOTE"
 
 TREE=$(git rev-parse HEAD^{tree})
-PARENT=$(git rev-parse --verify -q "$REMOTE/main" || true)
+MAIN=$(git rev-parse --verify -q "$REMOTE/main" || true)
+STAGING=$(git rev-parse --verify -q "$REMOTE/staging" || true)
+
+# Stack onto staging while a snapshot is still waiting to be promoted; otherwise
+# parent on main. Parenting on main while staging is ahead of it would produce a
+# commit staging cannot fast-forward to.
+PARENT="$MAIN"
+if [ -n "$STAGING" ] && [ -n "$MAIN" ] && git merge-base --is-ancestor "$MAIN" "$STAGING"; then
+    PARENT="$STAGING"
+fi
 
 if [ -n "$PARENT" ] && [ "$(git rev-parse "$PARENT^{tree}")" = "$TREE" ]; then
-    echo "==> public/main already has this exact tree; nothing to publish"
+    echo "==> $REMOTE already has this exact tree; nothing to publish"
     exit 0
 fi
 
