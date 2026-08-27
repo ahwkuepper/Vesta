@@ -1,6 +1,6 @@
 [{"creationtime":"2026-08-24T04:56:00Z","id":"e0000000-0000-4000-8000-000000000002",
   "type":"update","data":[
    {"id":"22222222-2222-4222-8222-222222222222","type":"light",
-    "effects_v2":{"status":{"effect":"candle"}}},
+    "signaling":{"status":{"signal":"no_signal"}}},
    {"id":"99999999-9999-4999-8999-999999999999","type":"grouped_light",
     "on":{"on":true}}]}]

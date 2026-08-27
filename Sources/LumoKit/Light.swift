@@ -78,11 +78,17 @@ public struct LightState: Sendable, Equatable, Codable, Hashable {
     /// 0…1. Mapped to the bulb's 1…254 at the protocol edge, not here.
     public var brightness: Double
     public var color: LightColor
+    /// The dynamic effect the bulb is running, or nil for none. Read from the
+    /// bridge rather than remembered locally, so an effect started from the Hue app
+    /// or a wall switch shows here too.
+    public var effect: String?
 
-    public init(isOn: Bool, brightness: Double, color: LightColor) {
+    public init(isOn: Bool, brightness: Double, color: LightColor,
+                effect: String? = nil) {
         self.isOn = isOn
         self.brightness = brightness.clamped(to: 0...1)
         self.color = color
+        self.effect = effect
     }
 
     public static let `default` = LightState(
@@ -100,24 +106,33 @@ public struct LightStateDelta: Sendable, Equatable {
     public var isOn: Bool?
     public var brightness: Double?
     public var color: LightColor?
+    /// Double-optional on purpose: `nil` means the event said nothing about the
+    /// effect, `.some(nil)` means it reported the effect was cleared.
+    public var effect: String??
 
-    public init(isOn: Bool? = nil, brightness: Double? = nil, color: LightColor? = nil) {
+    public init(isOn: Bool? = nil, brightness: Double? = nil, color: LightColor? = nil,
+                effect: String?? = nil) {
         self.isOn = isOn
         self.brightness = brightness
         self.color = color
+        self.effect = effect
     }
 
     /// A delta that sets everything, for transports that report complete state.
     public init(_ state: LightState) {
-        self.init(isOn: state.isOn, brightness: state.brightness, color: state.color)
+        self.init(isOn: state.isOn, brightness: state.brightness, color: state.color,
+                  effect: .some(state.effect))
     }
 
-    public var isEmpty: Bool { isOn == nil && brightness == nil && color == nil }
+    public var isEmpty: Bool {
+        isOn == nil && brightness == nil && color == nil && effect == nil
+    }
 
     public func applied(to state: LightState) -> LightState {
         LightState(isOn: isOn ?? state.isOn,
                    brightness: brightness ?? state.brightness,
-                   color: color ?? state.color)
+                   color: color ?? state.color,
+                   effect: effect ?? state.effect)
     }
 }
 

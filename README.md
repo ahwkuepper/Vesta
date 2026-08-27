@@ -5,18 +5,28 @@ A macOS menu-bar controller for Philips Hue that talks only to your lights.
 Smart-home software normally asks you to choose: a house full of useful technology,
 or your privacy. Lumo does not make that trade. It speaks to the bridge on your own
 network and to nothing else — no account, no cloud, no telemetry, no crash
-reporting, no update check, no analytics. Nothing about your home leaves your
-machine, including the fact that you are home.
+reporting, no update check, no analytics.
+
+Nothing about your home leaves your network. Including the fact that you are home.
 
 It has **no third-party dependencies at all**. Apple frameworks only, so there is no
-supply chain to audit and no package that can be compromised on your behalf. The
-bridge connection is pinned to your bridge's own certificate, and its key is kept in
-the Keychain.
+supply chain to audit and no package that can be compromised on your behalf.
 
-These are checked, not claimed: CI fails the build if a hard-coded host appears in
-the source, if a network API is used outside the reviewed transport, or if a remote
-package is declared. See [SECURITY.md](SECURITY.md) and
-[CONSTITUTION.md](CONSTITUTION.md).
+The connection is pinned to your bridge's public key, recorded when you paired by
+pressing the button on the device. A bridge ID is public — it is broadcast in mDNS
+and printed on the hardware — so a certificate bearing one proves nothing; the key
+pair cannot be forged. The application key is kept in the Keychain.
+
+These are checked rather than promised: CI fails the build if a hard-coded host
+appears in the source, if a networking or subprocess API is used outside the
+reviewed transport, or if a remote package or binary target is declared. The checks
+are structural — they make egress conspicuous in a diff rather than impossible — and
+[CONSTITUTION.md](CONSTITUTION.md) records what each one does and does not cover.
+See also [SECURITY.md](SECURITY.md).
+
+Lumo is an independent project. It is not made, certified, endorsed or supported by
+Signify or Philips Hue; "Philips Hue" and "Hue" are their trademarks, used here only
+to describe what Lumo works with.
 
 Rooms, scenes, per-light colour and brightness, gradients and effects — from the
 menu bar.
@@ -80,11 +90,13 @@ prompt attaches to the app rather than the calling shell:
 open -n -W build/Lumo.app --args --pair-bridge <bridge-ip>
 ```
 
-The application key is stored in the Keychain, never on disk. Every later connection
-is pinned to the bridge's certificate, whose common name is the bridge ID.
+The application key is stored in the Keychain, never on disk. The bridge's public
+key is recorded during that button press and every later connection is pinned to it.
+Pairing refuses any address that is not on your local network.
 
-CLI output goes to `~/Library/Containers/dev.lumo.Lumo/Data/lumo-cli.log`, because
-`open` detaches stdout.
+CLI output goes to `Library/Logs/lumo-cli.log` — inside the app's container when
+sandboxed — because `open` detaches stdout. It is created 0600 and never contains
+any part of the application key.
 
 | Command | Purpose |
 |---|---|
@@ -128,7 +140,8 @@ last scene in a burst is sent.
   points across 8 pixels). Only genuinely multi-colour looks appear; a uniform
   gradient is indistinguishable from a flat colour.
 - The bridge's built-in effects: candle, fire, prism, sparkle, opal, glisten,
-  underwater, cosmos, sunbeam, enchant.
+  underwater, cosmos, sunbeam, enchant. Some of these flicker or change rapidly; if
+  you are sensitive to flashing light, avoid the Effect row.
 
 A scene chip is ticked when the room currently matches that scene; a temperature
 preset is outlined when the light sits on it. An unreachable light is shown
@@ -207,7 +220,10 @@ rooms and scenes. It contains no light, room or scene names — reports get past
 public.
 
 **Logs** go to the unified log under subsystem `dev.lumo.Lumo`, categories
-`transport`, `store`, `ui` and `setup`. Names are logged `%{private}` and redacted.
+`transport`, `store`, `ui` and `setup`. Light, room and scene names are never
+written to the log at all, and failures are recorded as fixed strings — so a log is
+safe to read, and safe to hand to someone else, without exposing what is in your
+home.
 
 ```bash
 log show --predicate 'subsystem == "dev.lumo.Lumo"' --last 1h --info --debug

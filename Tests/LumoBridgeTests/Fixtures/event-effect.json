@@ -1,0 +1,6 @@
+[{"creationtime":"2026-08-24T04:57:00Z","id":"e0000000-0000-4000-8000-000000000003",
+  "type":"update","data":[
+   {"id":"22222222-2222-4222-8222-222222222222","type":"light",
+    "effects_v2":{"status":{"effect":"candle"}}},
+   {"id":"11111111-1111-4111-8111-111111111111","type":"light",
+    "effects_v2":{"status":{"effect":"no_effect"}}}]}]

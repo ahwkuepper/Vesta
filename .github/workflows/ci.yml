@@ -7,7 +7,9 @@ name: CI
 # see README.
 on:
   push:
-    branches: [main]
+    # staging too: snapshots land there first, and CONSTITUTION.md says CI runs on
+    # them. Without this the only gate is the promotion pull request.
+    branches: [main, staging]
   pull_request:
   workflow_dispatch:
 

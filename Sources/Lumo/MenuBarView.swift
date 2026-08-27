@@ -140,7 +140,7 @@ struct MenuBarView: View {
                     if !store.rooms.isEmpty {
                         Text("Not in a room")
                             .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .padding(.horizontal, 14)
                     }
@@ -222,7 +222,7 @@ struct MenuBarView: View {
         VStack(spacing: 8) {
             Image(systemName: "wifi.router")
                 .font(.system(size: 22))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
             Text("Looking for lights…")
                 .font(.system(size: 12, weight: .medium))
             Text(model.mode == .bridge
@@ -281,9 +281,16 @@ struct MenuBarView: View {
                 Divider()
             }
 
+            Text("Not affiliated with Signify or Philips Hue")
+                .font(.system(size: 10))
+            Divider()
+
             Button("Copy Diagnostics") {
                 let report = Diagnostics.report(store: store, mode: model.mode)
-                NSPasteboard.general.clearContents()
+                // Local only: the general pasteboard syncs to the user's other
+                // Apple devices via Universal Clipboard, which would send a report
+                // about their home off the machine.
+                NSPasteboard.general.prepareForNewContents(with: .currentHostOnly)
                 NSPasteboard.general.setString(report, forType: .string)
                 Log.ui.info("diagnostics copied to the pasteboard")
             }

@@ -180,3 +180,61 @@ struct BridgeErrorMessageTests {
         #expect((BridgeError.http(418, "x").errorDescription ?? "").contains("418"))
     }
 }
+
+@Suite("Pairing input validation")
+struct PairingValidationTests {
+    // Both of these guard the pin. A bridge ID that is not well formed reaches the
+    // certificate check as a string to compare, and an empty one would match a
+    // certificate with no common name at all.
+
+    @Test("A bridge ID must be a MAC widened to EUI-64")
+    func bridgeIDShape() {
+        #expect(BridgePairing.isWellFormed(bridgeID: "aabbccfffe112233"))
+        #expect(BridgePairing.isWellFormed(bridgeID: "AABBCCFFFE112233"))
+
+        #expect(!BridgePairing.isWellFormed(bridgeID: ""))
+        #expect(!BridgePairing.isWellFormed(bridgeID: "aabbccfffe1122"))     // short
+        #expect(!BridgePairing.isWellFormed(bridgeID: "aabbccdddd112233"))   // no fffe
+        #expect(!BridgePairing.isWellFormed(bridgeID: "zzbbccfffe112233"))   // not hex
+    }
+
+    @Test("Pairing refuses any address that is not on the local network")
+    func onlyLocalAddresses() throws {
+        // Synthetic addresses, present precisely to prove private ranges pass.
+        for host in ["192.168.1.2", "10.0.0.5", "172.16.4.1", "172.31.255.254",  // check-no-secrets: allow
+                     "169.254.1.1", "127.0.0.1", "aabbcc112233.local"] {
+            #expect(throws: Never.self) { try BridgePairing.validateLocal(host: host) }
+        }
+
+        // A public host would otherwise be stored and talked to forever.
+        for host in ["bridge.example.com", "8.8.8.8", "172.32.0.1", "1.2.3.4", ""] {  // check-no-secrets: allow
+            #expect(throws: BridgeError.self) { try BridgePairing.validateLocal(host: host) }
+        }
+    }
+}
+
+@Suite("Certificate pinning")
+struct PinningTests {
+    // The pin decides identity, so the comparison itself is worth testing directly.
+    // A real SecCertificate needs a real key pair, so these cover the comparison
+    // logic; the end-to-end path is exercised by --verify-bridge against hardware.
+
+    @Test("A stored hash that differs is rejected, whatever the name says")
+    func mismatchedHashRejected() {
+        let stored = Data(repeating: 0xAB, count: 32)
+        let presented = Data(repeating: 0xCD, count: 32)
+        #expect(!BridgePinning.hashesMatch(presented: presented, expected: stored))
+    }
+
+    @Test("An equal hash is accepted")
+    func matchingHashAccepted() {
+        let hash = Data((0..<32).map { UInt8($0) })
+        #expect(BridgePinning.hashesMatch(presented: hash, expected: hash))
+    }
+
+    @Test("A truncated hash never matches a longer one")
+    func lengthMismatchRejected() {
+        let full = Data(repeating: 0x11, count: 32)
+        #expect(!BridgePinning.hashesMatch(presented: full.prefix(16), expected: full))
+    }
+}

@@ -24,7 +24,12 @@ public enum BridgeCoding {
         struct Color: Decodable { let xy: XY? }
         struct GradientInfo: Decodable { let points_capable: Int? }
         struct EffectAction: Decodable { let effect_values: [String]? }
-        struct EffectsV2: Decodable { let action: EffectAction? }
+        struct EffectStatus: Decodable { let effect: String? }
+        struct EffectsV2: Decodable {
+            let action: EffectAction?
+            /// What the bulb is running now, as opposed to what it can run.
+            let status: EffectStatus?
+        }
 
         let id: String
         let type: String?
@@ -69,7 +74,15 @@ public enum BridgeCoding {
         }
         return LightState(isOn: resource.on?.on ?? false,
                           brightness: (resource.dimming?.brightness ?? 50) / 100,
-                          color: color)
+                          color: color,
+                          effect: currentEffect(of: resource))
+    }
+
+    /// `no_effect` is the bridge's way of saying none; the model uses nil.
+    static func currentEffect(of resource: LightResource) -> String? {
+        guard let effect = resource.effects_v2?.status?.effect,
+              effect != "no_effect" else { return nil }
+        return effect
     }
 
     /// Only the fields present in this payload. The bridge sends partial updates —
@@ -82,10 +95,20 @@ public enum BridgeCoding {
         } else if let xy = resource.color?.xy {
             color = .xy(x: xy.x, y: xy.y)
         }
+        // Only .some when the event actually carried an effect status, so a
+        // colour-only event does not read as "the effect was cleared".
+        let effect: String??
+        if let reported = resource.effects_v2?.status?.effect {
+            effect = .some(reported == "no_effect" ? nil : reported)
+        } else {
+            effect = nil
+        }
+
         return LightStateDelta(
             isOn: resource.on?.on,
             brightness: resource.dimming?.brightness.map { $0 / 100 },
-            color: color)
+            color: color,
+            effect: effect)
     }
 
     /// Server-sent event payload → the deltas it actually carries.

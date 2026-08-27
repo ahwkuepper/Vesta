@@ -34,7 +34,12 @@ APP="build/Lumo.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp ".build/$CONFIG/Lumo" "$APP/Contents/MacOS/Lumo"
-cp Info.plist "$APP/Contents/Info.plist"
+# LSMinimumSystemVersion must match the variant actually built, or the classic
+# build ships metadata claiming it needs macOS 26 and LaunchServices refuses to
+# open it on the systems it was built for.
+MIN_OS="${LUMO_MACOS_TARGET:-26.0}"
+sed "s|<key>LSMinimumSystemVersion</key><string>[^<]*</string>|<key>LSMinimumSystemVersion</key><string>$MIN_OS</string>|" \
+    Info.plist > "$APP/Contents/Info.plist"
 
 # Sign with a stable identity when one exists. Ad-hoc signatures change hash on
 # every rebuild, which makes the sandbox look like a different app each time and

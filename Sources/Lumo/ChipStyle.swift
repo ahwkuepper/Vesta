@@ -10,7 +10,7 @@ import SwiftUI
 /// Selection is a filled capsule plus a tick, which survives any appearance.
 extension View {
 
-    func chipStyle(tint: Color? = nil, isActive: Bool = false) -> some View {
+    func chipStyle(isActive: Bool = false) -> some View {
         // A fill, not a ring: `strokeBorder` draws inside the shape, so an outlined
         // chip reads as smaller than its neighbours even though the geometry matches.
         background(
@@ -21,4 +21,12 @@ extension View {
 
     /// No-op, kept so call sites read the same whether or not grouping applies.
     func chipGroup(spacing: CGFloat = 6) -> some View { self }
+
+    /// One size for every chip. Scenes, temperature presets and effects are one
+    /// visual vocabulary and had drifted 1–2pt apart in padding and text size.
+    func chipMetrics() -> some View {
+        font(.system(size: 10, weight: .medium))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+    }
 }
