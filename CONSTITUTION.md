@@ -47,6 +47,11 @@ target in this repository, through review.
 *Enforced by:* `check-boundaries.sh` fails on `dlopen`, `dlsym`, `Bundle(path:)`,
 `Bundle(url:)`, `Bundle(identifier:)` and `NSClassFromString`.
 
+Targets are also layered, and the layering is checked: the domain imports no
+transport and no UI framework, the command line does not import the interface, and
+a transport does not import its callers. A device module therefore cannot reach the
+interface, and the domain cannot be quietly taught about a protocol.
+
 ## Article 4 — Device input is untrusted
 
 Anything arriving from the network is attacker-controlled, including from devices the

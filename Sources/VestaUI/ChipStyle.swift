@@ -25,7 +25,7 @@ extension View {
     /// One size for every chip. Scenes, temperature presets and effects are one
     /// visual vocabulary and had drifted 1–2pt apart in padding and text size.
     func chipMetrics() -> some View {
-        font(.system(size: 10, weight: .medium))
+        font(.chipLabel)
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
     }

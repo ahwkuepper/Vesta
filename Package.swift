@@ -23,18 +23,28 @@ let package = Package(
     name: "Vesta",
     platforms: [.macOS(deploymentTarget)],
     targets: [
-        // Domain model + the transport seam. Knows nothing about Bluetooth,
-        // so it stays testable and buildable regardless of the bonding situation.
+        // Domain. Knows nothing about any particular protocol, and imports no UI.
         .target(name: "VestaKit"),
 
-        // The only target that imports CoreBluetooth.
+        // Transports. Each is the only place its framework may be imported.
         .target(name: "VestaBLE", dependencies: ["VestaKit"]),
-
-        // Hue Bridge over the local CLIP v2 API. Same LightTransport seam as
-        // VestaBLE, so nothing above it knows which one is in use.
         .target(name: "VestaBridge", dependencies: ["VestaKit"]),
 
-        .executableTarget(name: "Vesta", dependencies: ["VestaKit", "VestaBLE", "VestaBridge"],
+        // The health report. Its own target because both the interface and the CLI
+        // need it, and the CLI must not have to depend on the interface to get it.
+        .target(name: "VestaDiagnostics", dependencies: ["VestaKit", "VestaBridge"]),
+
+        // Command line modes: pairing, verification, hardware self-tests. No UI.
+        .target(name: "VestaCLI",
+                dependencies: ["VestaKit", "VestaBridge", "VestaDiagnostics"]),
+
+        // The interface, and the offscreen renderer that photographs it.
+        .target(name: "VestaUI",
+                dependencies: ["VestaKit", "VestaBLE", "VestaBridge", "VestaDiagnostics"],
+                swiftSettings: glassSettings),
+
+        // Composition root: argument dispatch and nothing else.
+        .executableTarget(name: "Vesta", dependencies: ["VestaUI", "VestaCLI"],
                           swiftSettings: glassSettings),
 
         .testTarget(name: "VestaKitTests", dependencies: ["VestaKit"]),

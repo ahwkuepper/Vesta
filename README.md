@@ -205,7 +205,11 @@ still produces images, using the classic fallback and printing `Liquid Glass MIS
 for each file.
 
 Shots are taken in the popover's own material over a fixed neutral gradient, so they
-show the app's real translucency and stay identical run to run.
+show the app's real translucency and stay identical run to run. Every window that does not belong
+to the renderer is excluded from the capture, so a notification or a permission
+prompt cannot composite into a screenshot. `VESTA_SNAPSHOT_TEXT=large`
+renders at the largest text size the popover allows, which is how the fixed 330pt
+width gets tested rather than assumed.
 `VESTA_SNAPSHOT_BACKDROP=desktop` uses the actual wallpaper instead — for local
 inspection only, never for anything committed.
 
@@ -235,11 +239,18 @@ banner in the popover.
 ## Layout
 
 ```
-Sources/VestaKit    domain model, LightTransport, SimulatedTransport, scenes
-Sources/VestaBLE    the only target that imports CoreBluetooth
-Sources/VestaBridge Hue Bridge over the local CLIP v2 API
-Sources/Vesta       menu-bar app, plus the offscreen snapshot renderer
+Sources/VestaKit          domain model, LightTransport, SimulatedTransport, scenes
+Sources/VestaBLE          the only target that imports CoreBluetooth
+Sources/VestaBridge       Hue Bridge over the local CLIP v2 API
+Sources/VestaDiagnostics  the health report, shared by the interface and the CLI
+Sources/VestaCLI          pairing, verification and hardware self-tests
+Sources/VestaUI           the interface, and the renderer that photographs it
+Sources/Vesta             argument dispatch, and nothing else
 ```
+
+The layering is checked, not merely intended: `tools/check-boundaries.sh` fails the
+build if the domain imports a transport or any UI framework, if the command line
+imports the interface, or if a transport imports its callers.
 
 `LightTransport` is the seam between the domain model and any particular protocol.
 

@@ -50,7 +50,7 @@ struct GradientSlider: View {
     var body: some View {
         GeometryReader { geometry in
             let width = geometry.size.width
-            let thumbSize: CGFloat = isDragging ? 21 : 18
+            let thumbSize: CGFloat = isDragging ? 23 : 20
             // The handle is a capsule wider than it is tall, so the travel has to be
             // inset by its width — not its height — or it runs past the track ends.
             let thumbWidth = thumbSize * 1.55
@@ -81,8 +81,7 @@ struct GradientSlider: View {
                     .stroke(Color.accentColor, lineWidth: 2)
                     .padding(-3)
                     .opacity(showsFocusRing ? 1 : 0)
-                    .animation(reduceMotion ? nil : .easeOut(duration: 0.25),
-                               value: showsFocusRing)
+                    .motion(.easeOut(duration: 0.25), value: showsFocusRing)
             )
             .onKeyPress(.leftArrow)  { adjust(by: -step) }
             .onKeyPress(.rightArrow) { adjust(by: step) }
@@ -94,14 +93,18 @@ struct GradientSlider: View {
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in
                         if !isDragging {
-                            withAnimation(.snappy(duration: 0.12)) { isDragging = true }
+                            withAnimation(reduceMotion ? nil : .snappy(duration: 0.12)) {
+                                isDragging = true
+                            }
                         }
                         let f = ((drag.location.x - thumbWidth / 2) / (width - thumbWidth))
                             .clamped(to: 0...1)
                         value = range.lowerBound + f * (range.upperBound - range.lowerBound)
                     }
                     .onEnded { _ in
-                        withAnimation(.snappy(duration: 0.18)) { isDragging = false }
+                        withAnimation(reduceMotion ? nil : .snappy(duration: 0.18)) {
+                            isDragging = false
+                        }
                     }
             )
         }

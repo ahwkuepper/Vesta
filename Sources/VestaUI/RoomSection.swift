@@ -35,16 +35,16 @@ struct RoomSection: View {
     private var header: some View {
         HStack(spacing: 8) {
             Image(systemName: room.symbol)
-                .font(.system(size: 12))
+                .font(.roomIcon)
                 .foregroundStyle(.secondary)
                 .frame(width: 18)
 
             Text(room.name)
                 .lineLimit(1)
-                .font(.system(size: 12, weight: .semibold))
+                .font(.roomName)
 
             Text("\(lights.filter(\.state.isOn).count)/\(lights.count)")
-                .font(.system(size: 10))
+                .font(.roomCount)
                 .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
 
@@ -56,7 +56,7 @@ struct RoomSection: View {
                 nameFocused = true
             } label: {
                 Image(systemName: "plus")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(.controlGlyphBold)
                     .frame(width: 18, height: 18)
                     .contentShape(Rectangle())
             }
@@ -106,7 +106,7 @@ struct RoomSection: View {
         HStack(spacing: 6) {
             TextField("Scene name", text: $newSceneName)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 12))
+                .font(.roomIcon)
                 .focused($nameFocused)
                 .onSubmit(save)
 
@@ -117,7 +117,7 @@ struct RoomSection: View {
 
             Button("Cancel") { namingRoomID = nil }
                 .buttonStyle(.plain)
-                .font(.system(size: 11))
+                .font(.messageBody)
                 .foregroundStyle(.secondary)
         }
         .padding(.horizontal, 14)
@@ -160,7 +160,7 @@ struct SceneChip: View {
         Button(action: onApply) {
             HStack(spacing: 5) {
                 Image(systemName: scene.isActive ? "checkmark" : "sparkles")
-                    .font(.system(size: 9, weight: .semibold))
+                    .font(.controlGlyph)
                 Text(scene.name).lineLimit(1)
             }
             .chipMetrics()

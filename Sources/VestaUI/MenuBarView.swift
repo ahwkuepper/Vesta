@@ -1,5 +1,6 @@
 import SwiftUI
 import VestaKit
+import VestaDiagnostics
 
 /// The popover. Structured as: what's the whole place doing → each room, its
 /// scenes, then its individual lights. That order matches how often each is used,
@@ -38,6 +39,7 @@ struct MenuBarView: View {
             }
         }
         .frame(width: 330)
+        .dynamicTypeClamped()
         .background(WindowReader { window = $0 })
         .task {
             if expansion.ids.isEmpty, let initial = initialExpandedID {
@@ -52,15 +54,15 @@ struct MenuBarView: View {
     private var header: some View {
         HStack(spacing: 10) {
             Image(systemName: store.anyLightOn ? "lightbulb.fill" : "lightbulb")
-                .font(.system(size: 15))
+                .font(.appGlyph)
                 .foregroundStyle(store.anyLightOn ? .yellow : .secondary)
                 .frame(width: 22)
                 .contentTransition(.symbolEffect(.replace))
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Vesta").font(.system(size: 13, weight: .semibold))
+                Text("Vesta").font(.appTitle)
                 Text(summary)
-                    .font(.system(size: 11))
+                    .font(.appSummary)
                     .foregroundStyle(.secondary)
                     .contentTransition(.numericText())
             }
@@ -139,7 +141,7 @@ struct MenuBarView: View {
                     if !store.rooms.isEmpty { Divider().padding(.horizontal, 14) }
                     if !store.rooms.isEmpty {
                         Text("Not in a room")
-                            .font(.system(size: 10, weight: .semibold))
+                            .font(.sectionLabel)
                             .foregroundStyle(.secondary)
                             .textCase(.uppercase)
                             .padding(.horizontal, 14)
@@ -170,10 +172,10 @@ struct MenuBarView: View {
     private func errorBanner(_ error: UserFacingError) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 11))
+                .font(.messageBody)
                 .foregroundStyle(.orange)
             Text(error.message)
-                .font(.system(size: 11))
+                .font(.messageBody)
                 .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
@@ -181,7 +183,7 @@ struct MenuBarView: View {
                 store.dismissError()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.controlGlyphBold)
                     .foregroundStyle(.secondary)
                     .frame(width: 16, height: 16)
                     .contentShape(Rectangle())
@@ -195,7 +197,7 @@ struct MenuBarView: View {
         .background(.orange.opacity(0.12))
         .overlay(alignment: .top) { Divider() }
         .transition(.move(edge: .bottom).combined(with: .opacity))
-        .animation(.easeOut(duration: 0.18), value: error.id)
+        .motion(.easeOut(duration: 0.18), value: error.id)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("Error: \(error.message)")
     }
@@ -205,10 +207,10 @@ struct MenuBarView: View {
     private var pairingHint: some View {
         VStack(alignment: .leading, spacing: 5) {
             Label("These lights need pairing", systemImage: "lock.fill")
-                .font(.system(size: 12, weight: .medium))
+                .font(.messageTitle)
             Text("Vesta can see these bulbs over Bluetooth but can’t command them. "
-                 + "Switch to Bridge below — the Hue Bridge has no such restriction.")
-                .font(.system(size: 11))
+                 + "Switch to Bridge in the gear menu — the bridge has no such limit.")
+                .font(.messageBody)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -230,14 +232,14 @@ struct MenuBarView: View {
         }
         return AnyView(VStack(spacing: 8) {
             Image(systemName: "wifi.router")
-                .font(.system(size: 22))
+                .font(.messageGlyph)
                 .foregroundStyle(.secondary)
             Text("Looking for lights…")
-                .font(.system(size: 12, weight: .medium))
+                .font(.messageTitle)
             Text(model.mode == .bridge
                  ? "Connecting to your Hue Bridge."
                  : "Make sure your Hue bulbs are powered on and within Bluetooth range.")
-                .font(.system(size: 11))
+                .font(.messageBody)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
@@ -250,10 +252,10 @@ struct MenuBarView: View {
     private func unavailable(_ message: String) -> some View {
         VStack(spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.system(size: 20))
+                .font(.noticeGlyph)
                 .foregroundStyle(.orange)
             Text(message)
-                .font(.system(size: 12))
+                .font(.noticeBody)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
 
@@ -291,7 +293,7 @@ struct MenuBarView: View {
             }
 
             Text("Not affiliated with Signify or Philips Hue")
-                .font(.system(size: 10))
+                .font(.finePrint)
             Divider()
 
             Button("Copy Diagnostics") {
@@ -311,7 +313,7 @@ struct MenuBarView: View {
                 .keyboardShortcut("q")
         } label: {
             Image(systemName: "gearshape")
-                .font(.system(size: 12, weight: .medium))
+                .font(.toolbarGlyph)
         }
         .menuStyle(.borderlessButton)
         .menuIndicator(.hidden)
