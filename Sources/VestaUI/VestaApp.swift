@@ -18,9 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-enum VestaApp {
+public enum VestaApp {
+    /// The only entry point the executable needs.
     @MainActor
-    static func run() {
+    public static func run() {
         let app = NSApplication.shared
         let delegate = AppDelegate()
         app.delegate = delegate

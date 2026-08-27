@@ -1,5 +1,4 @@
 import Foundation
-import AppKit
 import VestaKit
 import VestaBridge
 
@@ -14,9 +13,9 @@ import VestaBridge
 /// names of things in someone's home, they are never needed to debug a connection,
 /// and a report is a thing people paste in public.
 @MainActor
-enum Diagnostics {
+public enum Diagnostics {
 
-    static func report(store: LightStore, mode: AppModel.Mode) -> String {
+    public static func report(store: LightStore, mode: TransportMode) -> String {
         var lines: [String] = []
 
         lines.append("Vesta diagnostics — \(Self.timestamp())")

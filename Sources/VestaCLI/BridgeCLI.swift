@@ -1,10 +1,12 @@
 import Foundation
 import VestaKit
 import VestaBridge
+import VestaDiagnostics
 
 /// `--pair-bridge` and `--verify-bridge`, so the bridge can be set up and checked
 /// from a terminal while standing next to it, before any of it is wired into the UI.
-enum BridgeCLI {
+/// Command line modes. Each returns a process exit code.
+public enum BridgeCLI {
 
     /// Mirrors output to a log file. Local-network and Bluetooth TCC prompts only
     /// attach correctly when the app is launched through LaunchServices, and that
@@ -29,7 +31,7 @@ enum BridgeCLI {
         try? log?.synchronize()
     }
 
-    static func pair(host: String) async -> Int32 {
+    public static func pair(host: String) async -> Int32 {
         let pairing = BridgePairing()
         do {
             let bridgeID = try await pairing.identify(host: host)
@@ -42,7 +44,6 @@ enum BridgeCLI {
             }
             try BridgeStore.save(credentials)
 
-            let key = credentials.appKey
             // Never write any part of the key, not even a prefix: this file is
             // plaintext on disk, and an unsandboxed run puts it in the home
             // directory. The fingerprint is enough to tell two keys apart.
@@ -57,7 +58,7 @@ enum BridgeCLI {
     /// Proves writes actually round-trip: briefly lights each lamp, reads the
     /// bridge back to confirm the change landed, then restores its exact prior
     /// state. Connecting is not the same as controlling.
-    static func testLights() async -> Int32 {
+    public static func testLights() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("no bridge credentials — run --pair-bridge <host> first")
             return 1
@@ -104,7 +105,7 @@ enum BridgeCLI {
 
     /// Exercises rooms and scenes end to end: lists them, creates a scene from the
     /// current state of the first room, recalls it, then deletes it again.
-    static func testScenes() async -> Int32 {
+    public static func testScenes() async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
         do {
@@ -153,7 +154,7 @@ enum BridgeCLI {
 
     /// Reproduces the reported bug: recall one scene, then another, and report
     /// what the store believes versus what the bridge says.
-    static func testSceneSwitch(_ first: String, _ second: String) async -> Int32 {
+    public static func testSceneSwitch(_ first: String, _ second: String) async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
         let store = await LightStore(transport: transport)
@@ -201,7 +202,7 @@ enum BridgeCLI {
 
     /// Watches the bridge's event stream while recalling a scene, and reports which
     /// fields each pushed update actually carries.
-    static func watchEvents(sceneName: String) async -> Int32 {
+    public static func watchEvents(sceneName: String) async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
         do {
@@ -245,7 +246,7 @@ enum BridgeCLI {
     /// bound to a code identity that changes on every rebuild — hence a password
     /// prompt each time. Deleting and re-adding it from a stably-signed build binds
     /// the ACL to that stable identity instead, after which it stops asking.
-    static func rebindKeychain() async -> Int32 {
+    public static func rebindKeychain() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("could not read the existing credentials — allow the keychain prompt and retry")
             return 1
@@ -265,7 +266,7 @@ enum BridgeCLI {
     }
 
     /// Applies a scene by name, so presets can be checked (and used) from a shell.
-    static func recall(sceneName: String) async -> Int32 {
+    public static func recall(sceneName: String) async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
         do {
@@ -306,7 +307,7 @@ enum BridgeCLI {
     /// room lighting: each preset pins a uniform gradient as well as a colour
     /// temperature, so the lamp lights the room evenly instead of keeping whatever
     /// multicolour spread was last active.
-    static func makePresets(room roomName: String) async -> Int32 {
+    public static func makePresets(room roomName: String) async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
 
@@ -366,7 +367,7 @@ enum BridgeCLI {
 
     /// Answers empirically whether a colour-temperature write alone makes a
     /// gradient fixture uniform, or whether the gradient has to be set too.
-    static func testGradient() async -> Int32 {
+    public static func testGradient() async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         let transport = BridgeTransport(credentials: credentials)
         do {
@@ -432,7 +433,7 @@ enum BridgeCLI {
     }
 
     /// Dumps a CLIP v2 resource collection, for working out what a bridge offers.
-    static func dump(_ type: String) async -> Int32 {
+    public static func dump(_ type: String) async -> Int32 {
         guard let credentials = BridgeStore.load() else { say("not paired"); return 1 }
         do {
             let json = try await BridgeTransport(credentials: credentials).rawResource(type)
@@ -445,7 +446,7 @@ enum BridgeCLI {
     }
 
     /// The same health report the gear menu copies, from a shell.
-    static func diagnose() async -> Int32 {
+    public static func diagnose() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("not paired — run --pair-bridge <host> first")
             return 1
@@ -464,7 +465,7 @@ enum BridgeCLI {
     }
 
     /// Reports how Vesta would find the bridge again, for diagnosing recovery.
-    static func discover() async -> Int32 {
+    public static func discover() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("no bridge credentials — run --pair-bridge <host> first")
             return 1
@@ -487,7 +488,7 @@ enum BridgeCLI {
     /// End-to-end check of DHCP recovery: deliberately store a wrong address, then
     /// connect normally and confirm the transport finds the bridge again by mDNS and
     /// writes the corrected address back.
-    static func testRelocate(bogus: String) async -> Int32 {
+    public static func testRelocate(bogus: String) async -> Int32 {
         guard let real = BridgeStore.load() else {
             say("no bridge credentials — run --pair-bridge <host> first")
             return 1
@@ -521,7 +522,7 @@ enum BridgeCLI {
     }
 
     /// Connects exactly the way the app does and reports every light the bridge has.
-    static func verify() async -> Int32 {
+    public static func verify() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("no bridge credentials in the Keychain — run --pair-bridge <host> first")
             return 1

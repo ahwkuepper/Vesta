@@ -14,9 +14,9 @@ import VestaKit
 /// menu bar. `ImageRenderer` draws the same view hierarchy into a bitmap in-process,
 /// so the UI can be reviewed and regression-checked from a build script.
 @MainActor
-enum Snapshot {
+public enum Snapshot {
 
-    static func renderAll(to directory: URL) async throws {
+    public static func renderAll(to directory: URL) async throws {
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
 
         // AppKit needs an initialised NSApplication before NSSwitch and friends
@@ -56,11 +56,18 @@ enum Snapshot {
         // snapshot mode never enters. Neither making the window key nor activating
         // the app changes it. Verify switch tint in the live app, not from these.
 
+        // The largest size the popover allows, so the fixed 330pt width is exercised
+        // rather than assumed. VESTA_SNAPSHOT_TEXT=large renders at the ceiling.
+        let textSize: DynamicTypeSize =
+            ProcessInfo.processInfo.environment["VESTA_SNAPSHOT_TEXT"] == "large"
+            ? .accessibility1 : .large
+
         for (name, model) in scenarios() {
             for (suffix, appearance) in [("dark", NSAppearance.Name.darkAqua),
                                          ("light", NSAppearance.Name.aqua)] {
                 try await render(MenuBarView(model: model, initialExpandedID: expandedFor(name),
-                                             rendersFullHeight: true),
+                                             rendersFullHeight: true)
+                                    .dynamicTypeSize(textSize),
                                  appearance: appearance,
                                  to: directory.appendingPathComponent("\(name)-\(suffix).png"))
             }
@@ -371,11 +378,25 @@ enum Snapshot {
 
         // Back-to-back captures fail intermittently, and a failure here falls back to
         // an in-process draw, which drops the glass.
+        // Everything that is not ours is excluded. A display capture takes whatever
+        // occupies that rectangle, so a notification, a permission prompt or another
+        // app's window composites straight into the shot — a Screen Recording
+        // consent dialog once shipped inside a README screenshot this way. Only this
+        // process's own backdrop and popover may appear.
+        let ours = content.windows.filter { $0.owningApplication?.processID == getpid() }
+        let intruders = content.windows.filter { window in
+            !ours.contains { $0.windowID == window.windowID }
+        }
+        if !intruders.isEmpty {
+            Log.ui.debug("snapshot excluding \(intruders.count, privacy: .public) foreign windows")
+        }
+
         var lastError: Error = SnapshotError.windowNotShareable
         for attempt in 0..<3 {
             do {
                 return try await SCScreenshotManager.captureImage(
-                    contentFilter: SCContentFilter(display: display, excludingWindows: []),
+                    contentFilter: SCContentFilter(display: display,
+                                                   excludingWindows: intruders),
                     configuration: configuration)
             } catch {
                 lastError = error

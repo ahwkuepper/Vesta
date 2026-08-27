@@ -1,5 +1,7 @@
 import Foundation
 import SwiftUI
+import VestaCLI
+import VestaUI
 
 /// Entry point. CLI modes are dispatched here, before SwiftUI takes over the
 /// process, because `App.init()` runs on the main thread with a guarded stack —

@@ -13,13 +13,9 @@ import VestaBridge
 @Observable
 final class AppModel {
 
-    enum Mode: String, CaseIterable, Identifiable {
-        case bridge
-        case bluetooth
-
-        var id: String { rawValue }
-        var title: String { self == .bridge ? "Bridge" : "Bluetooth" }
-    }
+    /// The transport in use. Defined in VestaKit so the diagnostics report and the
+    /// CLI can name it without depending on the interface.
+    typealias Mode = TransportMode
 
     /// Whether bridge credentials exist. Cached, and re-checked when the popover
     /// opens.

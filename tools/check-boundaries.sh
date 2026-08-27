@@ -53,6 +53,31 @@ else
     echo "  ok — only $allowed"
 fi
 
+echo "== module layering =="
+# The split into targets is only worth having if it cannot quietly collapse. The
+# domain must not know about any transport or any interface, and the command line
+# must not depend on the interface — that dependency is what put a 568-line CLI and
+# a 405-line renderer inside the app target in the first place.
+layering_ok=1
+forbid_import() {  # $1 = target dir, $2 = module it must not import, $3 = why
+    if grep -rn "^import $2\b" "Sources/$1" >/dev/null 2>&1; then
+        note "Sources/$1 imports $2 — $3"
+        layering_ok=0
+    fi
+}
+for forbidden in VestaBLE VestaBridge VestaUI VestaCLI VestaDiagnostics AppKit SwiftUI; do
+    forbid_import VestaKit "$forbidden" "the domain must stay independent of protocol and interface"
+done
+forbid_import VestaCLI VestaUI "the command line must not depend on the interface"
+forbid_import VestaDiagnostics VestaUI "the report is shared by the interface and the CLI"
+for forbidden in VestaUI VestaCLI; do
+    forbid_import VestaBridge "$forbidden" "a transport must not depend on its callers"
+    forbid_import VestaBLE "$forbidden" "a transport must not depend on its callers"
+done
+if [ $layering_ok -eq 1 ]; then
+    echo "  ok — domain, transports, CLI and interface stay in their layers"
+fi
+
 echo "== no runtime code loading =="
 # A loaded bundle inherits the app's entitlements, sandbox and Keychain access.
 # Device modules are compile-time targets that went through review, never plug-ins.

@@ -6,6 +6,7 @@ import VestaKit
 /// the HI review: putting every control on every row makes the common action
 /// (turn it down a bit) slower, not faster.
 struct LightRow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let light: Light
     @Bindable var store: LightStore
     @Binding var expansion: Expansion
@@ -36,7 +37,7 @@ struct LightRow: View {
                     .fill(.quaternary.opacity(0.55))
             }
         }
-        .animation(.snappy(duration: 0.22), value: isExpanded)
+        .motion(.snappy(duration: 0.22), value: isExpanded)
     }
 
     // MARK: - Header
@@ -47,7 +48,7 @@ struct LightRow: View {
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(light.name)
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.lightName)
                     .lineLimit(1)
                 statusLine
             }
@@ -59,7 +60,7 @@ struct LightRow: View {
                     expansion.toggle(light.id, in: roomID)
                 } label: {
                     Image(systemName: "slider.horizontal.3")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.rowControl)
                         .foregroundStyle(isExpanded ? Color.accentColor : .secondary)
                         .frame(width: 22, height: 22)
                         .contentShape(Rectangle())
@@ -98,11 +99,11 @@ struct LightRow: View {
             if !isCommandable {
                 Image(systemName: light.connection == .needsPairing
                       ? "lock.fill" : "antenna.radiowaves.left.and.right.slash")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(.controlGlyphBold)
                     .foregroundStyle(.secondary)
             }
         }
-        .animation(.easeOut(duration: 0.25), value: light.state)
+        .motion(.easeOut(duration: 0.25), value: light.state)
     }
 
     @ViewBuilder
@@ -110,20 +111,20 @@ struct LightRow: View {
         switch light.connection {
         case .ready:
             Text(light.state.isOn ? Formatting.percentage(light.state.brightness) : "Off")
-                .font(.system(size: 11))
+                .font(.lightStatus)
                 .foregroundStyle(.secondary)
         case .needsPairing:
             // An unpaired bulb is not an off bulb. Greying both out would be a lie.
             Text("Not paired")
-                .font(.system(size: 11, weight: .medium))
+                .font(.lightStatusEmphasis)
                 .foregroundStyle(.orange)
         case .unreachable:
             Text("Unreachable")
-                .font(.system(size: 11))
+                .font(.lightStatus)
                 .foregroundStyle(.red.opacity(0.85))
         case .connecting, .discovered:
             Text(light.connection.shortLabel)
-                .font(.system(size: 11))
+                .font(.lightStatus)
                 .foregroundStyle(.secondary)
         }
     }
@@ -200,7 +201,7 @@ struct LightRow: View {
         // panel over the row it has already vacated — the height collapses faster
         // than the pixels do.
         .transition(.asymmetric(
-            insertion: .opacity.animation(.easeOut(duration: 0.16)),
+            insertion: .opacity.animation(reduceMotion ? nil : .easeOut(duration: 0.16)),
             removal: .identity))
     }
 
@@ -272,7 +273,7 @@ struct LightRow: View {
                                     .frame(width: 46, height: 12)
                                     .overlay(Capsule().strokeBorder(.white.opacity(0.12), lineWidth: 0.5))
                                 Text(palette.name)
-                                    .font(.system(size: 9))
+                                    .font(.paletteName)
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)
                             }
@@ -323,13 +324,13 @@ struct LightRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.sectionLabel)
                     .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                 Spacer(minLength: 4)
                 if let value {
                     Text(value)
-                        .font(.system(size: 10, weight: .medium).monospacedDigit())
+                        .font(.sectionValue)
                         .foregroundStyle(.secondary)
                         .contentTransition(.numericText())
                 }
