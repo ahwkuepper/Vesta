@@ -169,7 +169,7 @@ struct LightRow: View {
             if light.capabilities.supportsGradient { gradientPalettes }
             if !light.capabilities.effects.isEmpty { effectPicker }
 
-            labelled("Colour") {
+            labelled("Colour", value: "\(Int(displayedHue * 360))°") {
                 GradientSlider(
                     value: Binding(
                         get: { displayedHue },
@@ -226,15 +226,14 @@ struct LightRow: View {
                     store.setColor(.temperature(mireds: preset.mireds), for: light.id)
                 } label: {
                     Text(preset.name)
-                        .font(.system(size: 10, weight: .medium))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .chipStyle(tint: Color(ColorScience.rgb(fromMireds: preset.mireds)),
-                                   isActive: matches(preset))
+                        .chipMetrics()
+                        .chipStyle(isActive: matches(preset))
                         .contentShape(Capsule())
                 }
                 .buttonStyle(.plain)
                 .help("\(preset.name) — \(Formatting.kelvin(preset.kelvin))")
+                .accessibilityLabel(preset.name)
+                .accessibilityAddTraits(matches(preset) ? [.isButton, .isSelected] : .isButton)
             }
             Spacer(minLength: 0)
         }
@@ -297,16 +296,20 @@ struct LightRow: View {
                 HStack(spacing: 5) {
                     Button("None") { store.setEffect(nil, for: light.id) }
                         .buttonStyle(.plain)
-                        .font(.system(size: 10, weight: .medium))
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .chipStyle()
+                        .chipMetrics()
+                        .chipStyle(isActive: light.state.effect == nil)
+                        .accessibilityLabel("No effect")
+                        .accessibilityAddTraits(
+                            light.state.effect == nil ? [.isButton, .isSelected] : .isButton)
 
                     ForEach(light.capabilities.effects, id: \.self) { effect in
                         Button(effect.capitalized) { store.setEffect(effect, for: light.id) }
                             .buttonStyle(.plain)
-                            .font(.system(size: 10, weight: .medium))
-                            .padding(.horizontal, 8).padding(.vertical, 4)
-                            .chipStyle()
+                            .chipMetrics()
+                            .chipStyle(isActive: light.state.effect == effect)
+                            .accessibilityLabel(effect.capitalized)
+                            .accessibilityAddTraits(
+                                light.state.effect == effect ? [.isButton, .isSelected] : .isButton)
                     }
                 }
                 .padding(.vertical, 1)
@@ -321,7 +324,7 @@ struct LightRow: View {
             HStack(spacing: 6) {
                 Text(title)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+                    .foregroundStyle(.secondary)
                     .textCase(.uppercase)
                 Spacer(minLength: 4)
                 if let value {

@@ -13,8 +13,15 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
     /// transport re-homes itself rather than failing until the user re-pairs.
     private let state: Box<BridgeCredentials>
     private var session: URLSession!
+    /// Separate session for the event stream. `timeoutIntervalForResource` is a
+    /// ceiling on a whole transfer, and the stream is a response that never
+    /// finishes — so it needs `.infinity`, and ordinary requests must not share it.
+    private var streamSession: URLSession!
     /// Serialises relocation so a burst of failed requests triggers one search.
     private let relocating = Box(false)
+    /// Ceiling on a single response body. The largest real CLIP v2 payload on a
+    /// large installation is a few hundred kilobytes.
+    static let maximumResponseBytes = 8 * 1024 * 1024
 
     public var credentials: BridgeCredentials { state.withLock { $0 } }
     private var handler: (@MainActor (TransportEvent) -> Void)?
@@ -25,9 +32,16 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
         super.init()
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 10
-        // The event stream is a long-lived response that never "finishes".
-        config.timeoutIntervalForResource = .infinity
+        // Bounded: `timeoutIntervalForRequest` only measures inactivity, so a host
+        // dribbling one byte every nine seconds holds a request open forever.
+        config.timeoutIntervalForResource = 30
         session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
+
+        let streamConfig = URLSessionConfiguration.ephemeral
+        streamConfig.timeoutIntervalForRequest = 0
+        streamConfig.timeoutIntervalForResource = .infinity
+        streamSession = URLSession(configuration: streamConfig, delegate: self,
+                                   delegateQueue: nil)
     }
 
     var base: URL {
@@ -43,7 +57,7 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
 
         let deadline = Date().addingTimeInterval(seconds)
         let task = Task {
-            guard let (bytes, _) = try? await session.bytes(for: streamRequest) else { return }
+            guard let (bytes, _) = try? await streamSession.bytes(for: streamRequest) else { return }
             for try await line in bytes.lines {
                 if Date() > deadline || Task.isCancelled { return }
                 if line.hasPrefix("data: ") { onLine(String(line.dropFirst(6))) }
@@ -77,6 +91,11 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
         for attempt in 0..<attempts {
             do {
                 let (data, response) = try await session.data(for: request)
+        // A bridge answer is a few kilobytes; anything approaching this is either
+        // broken or hostile, and `data(for:)` buffers all of it in memory.
+        guard data.count <= Self.maximumResponseBytes else {
+            throw BridgeError.malformedResponse
+        }
                 // 429 is the bridge asking for less, not an error to show anyone.
                 // Hue rate-limits light commands; back off and try again.
                 if let http = response as? HTTPURLResponse, http.statusCode == 429,
@@ -270,7 +289,7 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
             var backoff = 1
             while !Task.isCancelled {
                 do {
-                    let (bytes, _) = try await session.bytes(for: streamRequest)
+                    let (bytes, _) = try await streamSession.bytes(for: streamRequest)
                     backoff = 1
                     for try await line in bytes.lines {
                         if Task.isCancelled { return }
@@ -310,27 +329,40 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
 // MARK: - TLS
 
 extension BridgeTransport: URLSessionDelegate {
-    /// Hue Bridges present a self-signed certificate whose common name is the
-    /// bridge ID. Rather than disabling validation wholesale, accept exactly the
-    /// bridge we paired with and reject anything else — so a device that seizes the
-    /// bridge's DHCP address cannot silently impersonate it.
+    /// Accepts exactly the bridge we paired with.
+    ///
+    /// Hue Bridges present a self-signed certificate, so there is no chain to
+    /// validate — identity comes from the public key recorded at pairing. The
+    /// common name is checked first because it is cheap, but it decides nothing:
+    /// the bridge ID is published in mDNS and returned unauthenticated by
+    /// `/api/config`, so any device on the network can present a certificate
+    /// bearing it. Only the key pair cannot be forged.
     public func urlSession(_ session: URLSession,
                            didReceive challenge: URLAuthenticationChallenge) async
     -> (URLSession.AuthChallengeDisposition, URLCredential?) {
 
         guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
               let trust = challenge.protectionSpace.serverTrust,
-              let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
-              let leaf = chain.first
+              let leaf = BridgePinning.leafCertificate(from: trust)
         else { return (.cancelAuthenticationChallenge, nil) }
 
-        var commonName: CFString?
-        SecCertificateCopyCommonName(leaf, &commonName)
-        let name = (commonName as String?)?.lowercased() ?? ""
-
-        guard name == credentials.bridgeID.lowercased() else {
+        let current = credentials
+        guard BridgePinning.matches(certificate: leaf,
+                                    bridgeID: current.bridgeID,
+                                    expectedKeyHash: current.publicKeyHash) else {
+            Log.transport.error("rejected a certificate that is not the paired bridge")
             return (.cancelAuthenticationChallenge, nil)
         }
+
+        // Credentials stored before pinning existed carry no hash. Record it now,
+        // so this is trust-on-first-use once rather than a permanent hole.
+        if current.publicKeyHash == nil,
+           let hash = BridgePinning.publicKeyHash(of: leaf) {
+            state.withLock { $0.publicKeyHash = hash }
+            try? BridgeStore.save(credentials)
+            Log.transport.info("pinned the bridge's public key")
+        }
+
         return (.useCredential, URLCredential(trust: trust))
     }
 }

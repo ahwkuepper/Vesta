@@ -11,8 +11,14 @@ enum BridgeCLI {
     /// detaches stdout — so everything worth reading also goes to disk.
     nonisolated(unsafe) private static let log: FileHandle? = {
         let path = ProcessInfo.processInfo.environment["LUMO_CLI_LOG"]
-            ?? "\(NSHomeDirectory())/lumo-cli.log"
-        FileManager.default.createFile(atPath: path, contents: nil)
+            ?? "\(NSHomeDirectory())/Library/Logs/lumo-cli.log"
+        try? FileManager.default.createDirectory(
+            atPath: (path as NSString).deletingLastPathComponent,
+            withIntermediateDirectories: true)
+        // 0600: the default 0644 leaves this readable by every other account on the
+        // machine, and an unsandboxed run writes it under the real home directory.
+        FileManager.default.createFile(atPath: path, contents: nil,
+                                       attributes: [.posixPermissions: 0o600])
         return FileHandle(forWritingAtPath: path)
     }()
 
@@ -37,8 +43,10 @@ enum BridgeCLI {
             try BridgeStore.save(credentials)
 
             let key = credentials.appKey
-            let masked = "\(key.prefix(6))…\(key.suffix(4))"
-            say("PAIRED. app key \(masked) (\(key.count) chars) stored in the Keychain.")
+            // Never write any part of the key, not even a prefix: this file is
+            // plaintext on disk, and an unsandboxed run puts it in the home
+            // directory. The fingerprint is enough to tell two keys apart.
+            say("PAIRED. app key stored in the Keychain.")
             return 0
         } catch {
             say("pairing failed: \(error.localizedDescription)")

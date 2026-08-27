@@ -24,11 +24,21 @@ struct GradientSlider: View {
     var isEnabled: Bool = true
 
     @State private var isDragging = false
+    @FocusState private var isFocused: Bool
+
+    /// One arrow press. Twenty steps across the range matches what VoiceOver's
+    /// adjustable action already uses.
+    private var step: Double { (range.upperBound - range.lowerBound) / 20 }
 
     private var fraction: Double {
         let span = range.upperBound - range.lowerBound
         guard span > 0 else { return 0 }
         return ((value - range.lowerBound) / span).clamped(to: 0...1)
+    }
+
+    private func adjust(by delta: Double) -> KeyPress.Result {
+        value = (value + delta).clamped(to: range)
+        return .handled
     }
 
     var body: some View {
@@ -51,6 +61,22 @@ struct GradientSlider: View {
             }
             .frame(height: geometry.size.height)
             .contentShape(Rectangle())
+            // A stock Slider is Tab-reachable and arrow-operable for free; a custom
+            // control gets neither unless it asks. Without this, brightness and
+            // colour cannot be set from the keyboard at all.
+            .focusable(isEnabled)
+            .focused($isFocused)
+            .overlay(
+                Capsule()
+                    .stroke(Color.accentColor, lineWidth: isFocused ? 2 : 0)
+                    .padding(-3)
+            )
+            .onKeyPress(.leftArrow)  { adjust(by: -step) }
+            .onKeyPress(.rightArrow) { adjust(by: step) }
+            .onKeyPress(.downArrow)  { adjust(by: -step) }
+            .onKeyPress(.upArrow)    { adjust(by: step) }
+            .onKeyPress(.home)       { value = range.lowerBound; return .handled }
+            .onKeyPress(.end)        { value = range.upperBound; return .handled }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { drag in

@@ -40,11 +40,12 @@ struct RoomSection: View {
                 .frame(width: 18)
 
             Text(room.name)
+                .lineLimit(1)
                 .font(.system(size: 12, weight: .semibold))
 
             Text("\(lights.filter(\.state.isOn).count)/\(lights.count)")
                 .font(.system(size: 10))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(.secondary)
                 .contentTransition(.numericText())
 
             Spacer()
@@ -72,6 +73,10 @@ struct RoomSection: View {
             .toggleStyle(.switch)
             .controlSize(.mini)
             .labelsHidden()
+            // Matches the header switch. A room whose lights are all unreachable
+            // cannot be switched, and the control should say so rather than
+            // accepting a press that does nothing.
+            .disabled(!lights.contains { $0.connection.isCommandable })
             .accessibilityLabel("\(room.name) lights")
         }
         .padding(.horizontal, 14)
@@ -156,17 +161,18 @@ struct SceneChip: View {
             HStack(spacing: 5) {
                 Image(systemName: scene.isActive ? "checkmark" : "sparkles")
                     .font(.system(size: 9, weight: .semibold))
-                Text(scene.name).font(.system(size: 11, weight: .medium)).lineLimit(1)
+                Text(scene.name).lineLimit(1)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
+            .chipMetrics()
             // The bridge reports which scene the room actually matches, and drops it
             // the moment any light changes — so this says "these are your current
             // settings", not "this is what you last pressed".
-            .chipStyle(tint: tint, isActive: scene.isActive)
+            .chipStyle(isActive: scene.isActive)
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("\(scene.name) scene")
+        .accessibilityAddTraits(scene.isActive ? [.isButton, .isSelected] : .isButton)
         .contextMenu {
             if scene.isEditable {
                 Button("Delete Scene", role: .destructive, action: onDelete)

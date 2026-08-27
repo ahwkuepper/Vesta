@@ -14,8 +14,13 @@ Lumo talks to devices on the local network and to nothing else. No telemetry, cr
 reporting, update checks, analytics, or remote configuration.
 
 *Enforced by:* `tools/check-boundaries.sh` fails the build if a hard-coded host
-appears in `Sources/`, or if network APIs are used outside a reviewed transport
-module. Runs in CI on every push and pull request.
+appears in `Sources/`, or if a networking or subprocess API is used outside a
+reviewed transport module. Runs in CI on every push and pull request.
+
+*What that is worth:* the check is a token scan, not a network property. It makes
+egress conspicuous in a diff — anything added has to appear as a recognisable API
+call in a reviewed file — but a determined contributor can compute a destination at
+runtime. Treat it as a tripwire, not a wall.
 
 *Gap:* the `com.apple.security.network.client` entitlement permits any outbound
 connection; macOS has no LAN-only entitlement. The check is structural, not a kernel
@@ -28,7 +33,7 @@ Apple frameworks only. A dependency runs with the app's entitlements, sandbox an
 Keychain access.
 
 *Enforced by:* `check-boundaries.sh` fails if `Package.swift` declares a remote
-package or if `Package.resolved` exists.
+package or a `binaryTarget`, or if `Package.resolved` exists.
 
 Where a dependency becomes unavoidable, vendor it into the tree so it is reviewed
 like any other code.
@@ -39,8 +44,8 @@ A plug-in bundle inherits the host app's entitlements, sandbox and Keychain, so 
 is no boundary between the app and a plug-in it loads. Device support is added as a
 target in this repository, through review.
 
-*Enforced by:* `check-boundaries.sh` fails on `dlopen`, `Bundle(path:)` and
-`NSClassFromString`.
+*Enforced by:* `check-boundaries.sh` fails on `dlopen`, `dlsym`, `Bundle(path:)`,
+`Bundle(url:)`, `Bundle(identifier:)` and `NSClassFromString`.
 
 ## Article 4 — Device input is untrusted
 
@@ -49,9 +54,9 @@ user owns. Decoding must be total: no force unwraps, no unbounded reads, a timeo
 everything.
 
 *Enforced by:* `check-boundaries.sh` fails on `try!` and `as!` in `Sources/`.
-Contract tests decode recorded payloads, including malformed ones.
-
-*Gap:* response size limits are not enforced.
+Contract tests decode recorded payloads, including malformed ones. Responses are
+capped at 8 MB and the data session has a bounded resource timeout, so a host that
+answers slowly forever cannot hold a request open or exhaust memory.
 
 ## Article 5 — Credentials are scoped and never on disk
 
@@ -68,9 +73,10 @@ The diagnostics report is designed to be pasted into a public issue. It carries 
 light, room or scene names, no addresses and no coordinates, and identifies keys and
 bridges only by fingerprint.
 
-*Enforced by:* `tools/check-no-secrets.sh` in CI scans tracked text for real
-addresses, MAC addresses and coordinates. A test asserts that fingerprints disclose
-neither the value nor its prefix.
+*Enforced by:* `tools/check-no-secrets.sh` in CI scans every tracked text file —
+including the recorded bridge fixtures — for real addresses, MAC addresses, bridge
+IDs, derived `.local` names and coordinates. A test asserts that fingerprints
+disclose neither the value nor its prefix.
 
 ## Article 7 — The user is told when something fails
 
@@ -93,7 +99,13 @@ the measurement rather than the intention.
 
 1. CI passes: both build variants, all tests, `check-boundaries.sh`,
    `check-no-secrets.sh`.
-2. A human reviews it. `main` is protected: no direct pushes, no self-merge.
+2. `main` is protected: changes arrive by pull request, CI must pass before merge,
+   and force-pushes and deletions are refused.
+
+   *Gap:* branch protection does not require an approving review. With one
+   maintainer there is no second reviewer, so a required approval could never be
+   satisfied and self-merge is possible today. This must close before the repository
+   accepts pull requests from anyone but the maintainer.
 3. A change touching a transport, credentials, entitlements or the diagnostics report
    is **security-relevant** and says so in its description, naming the articles it
    touches.

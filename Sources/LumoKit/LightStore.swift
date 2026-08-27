@@ -207,9 +207,15 @@ public final class LightStore {
     }
 
     public func setEffect(_ effect: String?, for id: Light.ID) {
+        if let i = lights.firstIndex(where: { $0.id == id }) {
+            lights[i].state.effect = effect
+        }
         Task { [transport, weak self] in
             do { try await transport.setEffect(effect, for: id) }
-            catch { self?.report("Couldn’t set the effect", error) }
+            catch {
+                self?.report("Couldn’t set the effect", error)
+                await self?.resync()
+            }
         }
     }
 

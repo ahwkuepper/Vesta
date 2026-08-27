@@ -10,6 +10,16 @@ public struct BridgeCredentials: Sendable, Codable, Equatable {
     public var address: String
     public var bridgeID: String
     public var appKey: String
+    /// SHA-256 of the bridge certificate's public key, captured at pairing.
+    ///
+    /// This is what identity is actually established by. The bridge ID is not a
+    /// secret — it is published in mDNS, returned unauthenticated by `/api/config`,
+    /// and derived from the MAC — so a certificate bearing it proves nothing. Only
+    /// the key pair is unforgeable.
+    ///
+    /// Optional so credentials stored before pinning existed still decode; those
+    /// re-pin on the next successful connection rather than locking the user out.
+    public var publicKeyHash: Data?
 
     /// The bridge's stable mDNS hostname, derived from its ID.
     ///
@@ -24,10 +34,12 @@ public struct BridgeCredentials: Sendable, Codable, Equatable {
         return "\(id.prefix(6))\(id.suffix(6)).local"
     }
 
-    public init(address: String, bridgeID: String, appKey: String) {
+    public init(address: String, bridgeID: String, appKey: String,
+                publicKeyHash: Data? = nil) {
         self.address = address
         self.bridgeID = bridgeID
         self.appKey = appKey
+        self.publicKeyHash = publicKeyHash
     }
 }
 
@@ -92,6 +104,7 @@ public enum BridgeStore {
 
 public enum BridgeError: LocalizedError {
     case notFound
+    case notLocalAddress
     case linkButtonNotPressed
     case http(Int, String)
     case keychain(OSStatus)
@@ -100,6 +113,8 @@ public enum BridgeError: LocalizedError {
     public var errorDescription: String? {
         switch self {
         case .notFound:              "No Hue Bridge found on this network."
+        case .notLocalAddress:
+            "That address is not on your local network. Lumo only pairs with a bridge on your own network."
         case .linkButtonNotPressed:  "Press the round button on the Bridge, then try again."
         case .http(let code, _):
             // Deliberately ignores the body. The bridge answers 429 with a full HTML

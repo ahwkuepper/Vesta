@@ -10,9 +10,22 @@ cd "$(dirname "$0")/.."
 fail=0
 note() { echo "  ✗ $1"; fail=1; }
 
+# Comment lines are stripped before every content check. A check that fires on prose
+# gets disabled, and a disabled check protects nothing.
+without_comments() {
+    grep -v "^[^:]*:[0-9]*:[[:space:]]*//" \
+        | grep -v "^[^:]*:[0-9]*:[[:space:]]*\*" \
+        | grep -v "^[^:]*:[0-9]*:[[:space:]]*/\*"
+}
+
 echo "== no third-party dependencies =="
 if grep -q '\.package(url:' Package.swift; then
     note "Package.swift declares a remote package"
+elif grep -q 'binaryTarget' Package.swift; then
+    # A remote XCFramework is a dependency that never appears as a package: it is
+    # precompiled, unauditable, and links straight into a binary holding Bluetooth,
+    # network and Keychain access.
+    note "Package.swift declares a binaryTarget"
 elif [ -f Package.resolved ]; then
     note "Package.resolved exists, so something resolved a remote package"
 else
@@ -26,9 +39,13 @@ echo "== network access confined to declared transports =="
 allowed="Sources/LumoBridge/"
 # Comment lines are stripped first: a check that fires on prose gets disabled, and
 # a disabled check protects nothing.
-offenders=$(grep -rn "URLSession\|NWConnection\|NWBrowser\|CFStream\|Socket" Sources/ \
-    | grep -v "^[^:]*:[0-9]*:[[:space:]]*//" \
-    | grep -v "^[^:]*:[0-9]*:[[:space:]]*\*" \
+# Beyond the obvious Foundation and Network types: a raw BSD socket, a shell-out to
+# curl, or Data(contentsOf:) over a URL are all egress that the framework names miss.
+# `connect(`/`bind(` alone are too generic — CoreBluetooth has its own connect() —
+# and a raw BSD socket is unusable without socket(), which is listed.
+egress="URLSession|NWConnection|NWBrowser|NWListener|CFStream|CFSocket|[^A-Za-z]socket\\(|Process\\(|NSTask|posix_spawn|execv|Data\\(contentsOf:"
+offenders=$(grep -rnE "$egress" Sources/ \
+    | without_comments \
     | cut -d: -f1 | sort -u | grep -v "^$allowed" || true)
 if [ -n "$offenders" ]; then
     for f in $offenders; do note "network API used outside a transport module: $f"; done
@@ -39,7 +56,8 @@ fi
 echo "== no runtime code loading =="
 # A loaded bundle inherits the app's entitlements, sandbox and Keychain access.
 # Device modules are compile-time targets that went through review, never plug-ins.
-if grep -rn "dlopen\|NSBundle(path\|Bundle(path:\|NSClassFromString" Sources/ >/dev/null 2>&1; then
+if grep -rnE "dlopen|dlsym|NSBundle\(path|Bundle\(path:|Bundle\(url:|Bundle\(identifier:|NSClassFromString" Sources/ \
+   | without_comments | grep -q .; then
     note "dynamic code loading found — modules must be compiled in, not loaded"
 else
     echo "  ok — no dynamic loading"
@@ -55,8 +73,9 @@ fi
 
 echo "== no force unwrapping of device input =="
 # Responses come from devices on the LAN, which are untrusted input.
-if grep -rn "try!\|as! " Sources/ >/dev/null 2>&1; then
-    grep -rn "try!\|as! " Sources/ | sed 's/^/    /'
+forced=$(grep -rn "try!\|as! " Sources/ | without_comments || true)
+if [ -n "$forced" ]; then
+    echo "$forced" | sed 's/^/    /'
     note "force unwrap in Sources"
 else
     echo "  ok"

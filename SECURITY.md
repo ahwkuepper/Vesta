@@ -34,11 +34,18 @@ Verified, not asserted — `tools/check-boundaries.sh` runs these in CI:
   inherit the app's sandbox, entitlements and Keychain access.
 - **Sandboxed with two entitlements**: `device.bluetooth` and `network.client`. No
   file access, no camera, no microphone, no inbound server.
-- **Credentials in the Keychain**, never on disk, `AfterFirstUnlockThisDeviceOnly`,
-  and never logged.
-- **TLS pinned to the paired bridge.** The certificate's common name must equal the
-  bridge ID recorded at pairing, so a device that seizes the bridge's DHCP address
-  cannot impersonate it (T3).
+- **Credentials in the Keychain**, never on disk, `AfterFirstUnlockThisDeviceOnly`.
+  No part of the application key is ever written to a log, a diagnostic or the CLI
+  log file — not even a prefix.
+- **TLS pinned to the paired bridge's public key.** The bridge's SPKI is hashed and
+  stored during the pairing button press, and every later connection must present
+  the same key. The certificate's common name is checked first as a cheap filter,
+  but it decides nothing: a bridge ID is published in mDNS and returned
+  unauthenticated by `/api/config`, so a certificate bearing one is trivial to mint.
+  Only the key pair is unforgeable, which is what closes T3.
+- **Pairing refuses non-local addresses.** A bridge address must be RFC1918,
+  link-local, loopback or a `.local` name, so the app cannot be talked into pairing
+  with a host on the internet.
 - **Device responses are treated as untrusted input.** No `try!` or `as!` in
   `Sources`; decoding is total and a malformed payload degrades rather than crashes.
 - **Diagnostics disclose nothing identifying.** No light, room or scene names; the

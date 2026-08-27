@@ -129,10 +129,33 @@ struct ContractTests {
 
     @Test("Events about things Lumo does not model produce no state change")
     func unmodelledEvent() throws {
-        // An effects-only update and a grouped_light update: neither should be
-        // turned into a light state change.
+        // A signalling update and a grouped_light update: neither should be turned
+        // into a light state change.
         let deltas = BridgeCoding.deltas(fromEvent: try fixture("event-unmodelled"))
         #expect(deltas.isEmpty)
+    }
+
+    @Test("An effect event reports the effect, and distinguishes cleared from absent")
+    func effectEvent() throws {
+        let deltas = BridgeCoding.deltas(fromEvent: try fixture("event-effect"))
+        #expect(deltas.count == 2)
+
+        // `no_effect` means the bulb is running none — which must be recorded as a
+        // change to nil, not as "the event said nothing about effects".
+        let started = try #require(deltas.first { $0.delta.effect == .some("candle") })
+        #expect(started.delta.isOn == nil)
+        let cleared = try #require(deltas.first { $0.id != started.id })
+        #expect(cleared.delta.effect == .some(nil))
+        #expect(!cleared.delta.isEmpty)
+    }
+
+    @Test("A colour-only event says nothing about the effect")
+    func colourEventLeavesEffectAlone() throws {
+        // The distinction the double optional exists for: absent must not read as
+        // "the effect was cleared", or a scene recall would silently stop an effect
+        // in the UI while the bulb kept running it.
+        let deltas = BridgeCoding.deltas(fromEvent: try fixture("event-scene-recall"))
+        #expect(deltas.allSatisfy { $0.delta.effect == nil })
     }
 
     @Test("Malformed payloads are rejected, not half-decoded")
