@@ -9,5 +9,5 @@
 /.github/               @ahwkuepper
 /entitlements.plist     @ahwkuepper
 /Info.plist             @ahwkuepper
-/Sources/LumoBridge/    @ahwkuepper
-/Sources/Lumo/Diagnostics.swift @ahwkuepper
+/Sources/VestaBridge/    @ahwkuepper
+/Sources/Vesta/Diagnostics.swift @ahwkuepper

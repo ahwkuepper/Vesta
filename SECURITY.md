@@ -1,6 +1,6 @@
 # Security
 
-Lumo controls devices in someone's home from a machine on their network. Its code is
+Vesta controls devices in someone's home from a machine on their network. Its code is
 therefore a supply chain into that home. This is what holds today, and what must
 change before it accepts device modules from strangers.
 
@@ -28,7 +28,7 @@ Verified, not asserted — `tools/check-boundaries.sh` runs these in CI:
 - **No outbound traffic to anywhere but the paired device.** The only URLs
   constructed anywhere are `https://<address>` where the address came from pairing.
   There is no analytics, no crash reporting, no update check.
-- **Network access is confined to one module.** Only `Sources/LumoBridge` may use
+- **Network access is confined to one module.** Only `Sources/VestaBridge` may use
   `URLSession` or `Network`; the check fails the build otherwise.
 - **No runtime code loading.** No `dlopen`, no plug-in bundles. A loaded bundle would
   inherit the app's sandbox, entitlements and Keychain access.
@@ -64,7 +64,7 @@ Each item below closes a hole that opens the moment someone else's module ships.
    BLE, mDNS — and the host refuses to initialise one that asks for more than its
    declaration. Makes over-reach visible in a diff.
 3. **Per-module credential scoping.** Keychain items are namespaced
-   `dev.lumo.Lumo.<module>` and a module is handed only its own. A Kasa module must
+   `io.github.ahwkuepper.Vesta.<module>` and a module is handed only its own. A Kasa module must
    not be able to read the Hue app key.
 4. **A device-authentication statement per module.** Hue pins a certificate. Kasa's
    legacy local protocol has none: a UDP broadcast on port 9999 enumerates devices

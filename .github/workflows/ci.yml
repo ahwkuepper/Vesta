@@ -1,6 +1,6 @@
 name: CI
 
-# Runs the parts of Lumo that do not need a bridge: the domain model, the colour
+# Runs the parts of Vesta that do not need a bridge: the domain model, the colour
 # science, and the contract tests over recorded bridge responses. That is most of
 # what breaks. The hardware suite (--verify-bridge, --test-lights,
 # --test-scene-switch) still has to be run by a human with a bridge on the network;
@@ -33,7 +33,7 @@ jobs:
       # day to day, so it is exactly the one that rots unnoticed.
       # Liquid Glass needs the macOS 26 SDK: `glassEffect` has to exist at compile
       # time, and `if #available` does not help with that — so the glass paths are
-      # behind `#if LUMO_GLASS`, which Package.swift defines only for a 26+ target.
+      # behind `#if VESTA_GLASS`, which Package.swift defines only for a 26+ target.
       # Runner images lag Xcode, so detect rather than assume. When a macOS 26
       # image ships, bump `runs-on` above and this starts covering glass by itself.
       - name: Detect SDK
@@ -55,14 +55,14 @@ jobs:
         run: swift build
 
       - name: Build (classic variant)
-        run: LUMO_MACOS_TARGET=14.0 swift build
+        run: VESTA_MACOS_TARGET=14.0 swift build
 
       - name: Test
         run: |
           if [ "${{ steps.sdk.outputs.glass }}" = "yes" ]; then
             swift test
           else
-            LUMO_MACOS_TARGET=14.0 swift test
+            VESTA_MACOS_TARGET=14.0 swift test
           fi
 
       - name: Check security boundaries

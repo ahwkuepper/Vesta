@@ -1,5 +1,5 @@
 #!/bin/bash
-# Create a stable local code-signing identity for Lumo.
+# Create a stable local code-signing identity for Vesta.
 #
 # Why this exists: build.sh previously signed ad-hoc (`codesign --sign -`). An
 # ad-hoc signature has no stable identity — its hash changes with every rebuild —
@@ -12,7 +12,7 @@
 # builds, so one "Always Allow" sticks and the key stays encrypted in the Keychain.
 set -euo pipefail
 
-NAME="Lumo Development"
+NAME="Vesta Development"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 if security find-identity -v -p codesigning | grep -q "$NAME"; then
@@ -42,11 +42,11 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 3650 -nodes \
 # Legacy PKCS#12 algorithms: OpenSSL 3 defaults to PBKDF2 + AES, which macOS's
 # SecKeychainItemImport cannot read ("MAC verification failed").
 openssl pkcs12 -export -inkey "$WORK/key.pem" -in "$WORK/cert.pem" \
-    -out "$WORK/id.p12" -name "$NAME" -passout pass:lumo \
+    -out "$WORK/id.p12" -name "$NAME" -passout pass:vesta \
     -macalg sha1 -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES
 
 # -T /usr/bin/codesign lets codesign use the key without opening it to every app.
-security import "$WORK/id.p12" -k "$KEYCHAIN" -P lumo -T /usr/bin/codesign
+security import "$WORK/id.p12" -k "$KEYCHAIN" -P vesta -T /usr/bin/codesign
 
 # User trust domain only — no admin rights needed, and it affects only this account.
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$WORK/cert.pem"

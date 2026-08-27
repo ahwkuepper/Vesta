@@ -36,7 +36,7 @@ echo "== network access confined to declared transports =="
 # Every outbound call must go through a transport module that has been reviewed for
 # it. A device module quietly opening its own URLSession is exactly how "fully local"
 # stops being true.
-allowed="Sources/LumoBridge/"
+allowed="Sources/VestaBridge/"
 # Comment lines are stripped first: a check that fires on prose gets disabled, and
 # a disabled check protects nothing.
 # Beyond the obvious Foundation and Network types: a raw BSD socket, a shell-out to
