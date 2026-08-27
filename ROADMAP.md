@@ -11,7 +11,7 @@ Probed against a bridge with four lights (`--dump <type>`).
 | `behavior_script` | 14 | Automation catalogue the bridge runs itself |
 | `behavior_instance` | 1 | Configured automations and their run state |
 | `entertainment` / `entertainment_configuration` | 5 / 1 | Low-latency streaming; screen or music sync |
-| `zigbee_device_discovery` | 1 | Add a bulb from Lumo instead of the Hue app |
+| `zigbee_device_discovery` | 1 | Add a bulb from Vesta instead of the Hue app |
 | `device_software_update` | 4 | Surface firmware updates per device |
 | `zigbee_connectivity` | 5 | Link quality — a better "unreachable" than a failed write |
 | `geolocation` | 1 | Sunset/sunrise. `is_configured` was false |
@@ -26,20 +26,20 @@ streaming.
 
 ## Schedules
 
-Schedules belong on the bridge, not in Lumo. A Mac sleeps and leaves the house; a
+Schedules belong on the bridge, not in Vesta. A Mac sleeps and leaves the house; a
 schedule in a menu-bar app fires only while the app runs. The bridge runs
 continuously and has native scheduling via `behavior_instance`, including
 sunset/sunrise, which also handles DST and timezones.
 
-Lumo's role is to edit schedules that execute elsewhere. Open questions: how to
+Vesta's role is to edit schedules that execute elsewhere. Open questions: how to
 represent behaviour instances in the UI, and what to offer for backends with no
 scheduling of their own. Sunset/sunrise requires `geolocation` to be configured
 first, so that belongs in the setup flow.
 
 ## iOS
 
-`LumoKit` is pure domain logic and `LumoBridge` is `URLSession`; both should compile
-for iOS unchanged. `LumoBLE` uses CoreBluetooth, which exists on iOS. The work is a
+`VestaKit` is pure domain logic and `VestaBridge` is `URLSession`; both should compile
+for iOS unchanged. `VestaBLE` uses CoreBluetooth, which exists on iOS. The work is a
 new UI layer — a widget and a Control Centre control rather than a menu bar — plus
 iOS's local-network permission prompt. `Package.swift` gains iOS platforms and the
 app targets separate.
@@ -61,7 +61,7 @@ the authenticated path.
 Security findings that constrain the UI:
 
 - **No authentication.** Anyone on the network can enumerate and control these
-  devices. Lumo must not present them as protected the way a pinned Hue connection
+  devices. Vesta must not present them as protected the way a pinned Hue connection
   is.
 - **The plugs disclose the home's location.** `latitude_i` and `longitude_i` return
   real coordinates, unauthenticated, along with `deviceId`, `oemId` and MAC. These
@@ -83,8 +83,8 @@ at once rather than switching between them.
 
 ## Modular device stack
 
-End state: `LumoKit` defines the device contract and each backend is its own target
-— `LumoHue`, `LumoKasa`, `LumoMatter`. Adding a brand means adding a target and a
+End state: `VestaKit` defines the device contract and each backend is its own target
+— `VestaHue`, `VestaKasa`, `VestaMatter`. Adding a brand means adding a target and a
 registration, not touching the UI.
 
 A device module is arbitrary code holding the app's entitlements and Keychain

@@ -26,13 +26,18 @@ patterns=(
   '([0-9a-f]{1,4}:){4,}[0-9a-f]{0,4}'
 )
 
-# Every tracked text file, not a hand-maintained list of extensions. The recorded
-# bridge fixtures are .json — the one file type whose whole purpose is holding real
-# responses — and they were exempt from this check until they were named here.
-targets=$(git ls-files | grep -vE '\.(png|jpg|jpeg|gif|pdf|zip|icns)$' 2>/dev/null)
+# Every tracked file; grep -I then skips anything binary. The recorded bridge
+# fixtures are .json — the one file type whose whole purpose is holding real
+# responses — and they were exempt from this check until this stopped being a
+# hand-maintained list of extensions.
+#
+# Binary fixtures are therefore NOT scanned and must be reviewed by hand. The two
+# committed certificates were generated for the test suite and carry the synthetic
+# bridge ID.
+targets=$(git ls-files 2>/dev/null)
 
 for pattern in "${patterns[@]}"; do
-    hits=$(echo "$targets" | xargs grep -nEi "$pattern" 2>/dev/null \
+    hits=$(echo "$targets" | xargs grep -InEi "$pattern" 2>/dev/null \
         | grep -vE '192\.0\.2\.|198\.51\.100\.|203\.0\.113\.' \
         | grep -viE 'aa:bb:cc|aabbccfffe112233|aabbcc112233\.local' \
         | grep -v 'check-no-secrets: allow' || true)

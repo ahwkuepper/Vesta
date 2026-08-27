@@ -1,6 +1,6 @@
-# Lumo's constitution
+# Vesta's constitution
 
-Lumo controls lights in people's homes and runs on their personal machines. It is
+Vesta controls lights in people's homes and runs on their personal machines. It is
 open source, so its contributors are strangers.
 
 Every article names the mechanism that enforces it. Where an article is unenforced,
@@ -10,7 +10,7 @@ it says so; those gaps are where to spend effort next.
 
 ## Article 1 — Nothing leaves the machine
 
-Lumo talks to devices on the local network and to nothing else. No telemetry, crash
+Vesta talks to devices on the local network and to nothing else. No telemetry, crash
 reporting, update checks, analytics, or remote configuration.
 
 *Enforced by:* `tools/check-boundaries.sh` fails the build if a hard-coded host
@@ -124,6 +124,11 @@ never pushed.
 Snapshots land on `staging`, where CI runs, and reach `main` only through a pull
 request that the same checks gate. `tools/publish.sh` performs this. Publishing does
 not bypass the protection on `main`.
+
+A pull request from outside therefore lands by being applied to the private tree and
+republished, not by being merged — merging it would be undone by the next snapshot.
+[CONTRIBUTING.md](CONTRIBUTING.md) says so plainly, because discovering it after the
+fact would read as bad faith.
 
 ## What this cannot do
 

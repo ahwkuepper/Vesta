@@ -1,9 +1,9 @@
-# Lumo
+# Vesta
 
 A macOS menu-bar controller for Philips Hue that talks only to your lights.
 
 Smart-home software normally asks you to choose: a house full of useful technology,
-or your privacy. Lumo does not make that trade. It speaks to the bridge on your own
+or your privacy. Vesta does not make that trade. It speaks to the bridge on your own
 network and to nothing else — no account, no cloud, no telemetry, no crash
 reporting, no update check, no analytics.
 
@@ -24,15 +24,15 @@ are structural — they make egress conspicuous in a diff rather than impossible
 [CONSTITUTION.md](CONSTITUTION.md) records what each one does and does not cover.
 See also [SECURITY.md](SECURITY.md).
 
-Lumo is an independent project. It is not made, certified, endorsed or supported by
+Vesta is an independent project. It is not made, certified, endorsed or supported by
 Signify or Philips Hue; "Philips Hue" and "Hue" are their trademarks, used here only
-to describe what Lumo works with.
+to describe what Vesta works with.
 
 Rooms, scenes, per-light colour and brightness, gradients and effects — from the
 menu bar.
 
 <p align="center">
-  <img src="docs/screenshots/rooms-dark.png" width="330" alt="Lumo's popover showing two rooms, each with its own switch and scene chips">
+  <img src="docs/screenshots/rooms-dark.png" width="330" alt="Vesta's popover showing two rooms, each with its own switch and scene chips">
   &nbsp;&nbsp;
   <img src="docs/screenshots/controls-dark.png" width="330" alt="A light expanded to show brightness, colour temperature with a live Kelvin readout, gradient palettes and built-in effects">
 </p>
@@ -61,7 +61,7 @@ Without it, `build.sh` signs ad-hoc; the hash changes every rebuild, so macOS tr
 each build as a new app and re-prompts for Keychain access to the bridge key.
 
 ```bash
-./build.sh && open build/Lumo.app
+./build.sh && open build/Vesta.app
 ```
 
 ### Two build variants
@@ -73,12 +73,12 @@ tree:
 
 ```bash
 ./build.sh                          # macOS 26 — Liquid Glass
-LUMO_MACOS_TARGET=14.0 ./build.sh   # macOS 14 — classic appearance
+VESTA_MACOS_TARGET=14.0 ./build.sh   # macOS 14 — classic appearance
 ```
 
-`Package.swift` defines `LUMO_GLASS` only for a macOS 26+ target, because
+`Package.swift` defines `VESTA_GLASS` only for a macOS 26+ target, because
 `glassEffect` must exist at compile time — `if #available` is not sufficient. Code
-using it is guarded by `#if LUMO_GLASS`.
+using it is guarded by `#if VESTA_GLASS`.
 
 ## Bridge setup
 
@@ -87,14 +87,14 @@ the bridge within 60 seconds. Launch via `open -n` so the local-network permissi
 prompt attaches to the app rather than the calling shell:
 
 ```bash
-open -n -W build/Lumo.app --args --pair-bridge <bridge-ip>
+open -n -W build/Vesta.app --args --pair-bridge <bridge-ip>
 ```
 
 The application key is stored in the Keychain, never on disk. The bridge's public
 key is recorded during that button press and every later connection is pinned to it.
 Pairing refuses any address that is not on your local network.
 
-CLI output goes to `Library/Logs/lumo-cli.log` — inside the app's container when
+CLI output goes to `Library/Logs/vesta-cli.log` — inside the app's container when
 sandboxed — because `open` detaches stdout. It is created 0600 and never contains
 any part of the application key.
 
@@ -103,14 +103,14 @@ any part of the application key.
 | `--pair-bridge <ip>` | Pair with a bridge |
 | `--verify-bridge` | List every light the bridge reports |
 | `--test-lights` | Flash each light, restoring its prior state |
-| `--discover` | Report how Lumo would locate the bridge |
+| `--discover` | Report how Vesta would locate the bridge |
 | `--test-relocate <ip>` | Poison the stored address and confirm recovery |
 | `--make-presets "<room>"` | Create Evening, Reading and Candlelight scenes |
 | `--diagnose` | Print a health report; non-zero exit when something is wrong |
 
 ### DHCP lease changes
 
-Lumo stores the bridge's mDNS name (`aabbcc112233.local`), derived from its ID by
+Vesta stores the bridge's mDNS name (`aabbcc112233.local`), derived from its ID by
 removing the `fffe` EUI-64 padding, so the address follows the device. When a request
 fails in a way that indicates a bad address, the transport re-homes to that name,
 replays the request once, and writes the working address back to the Keychain.
@@ -123,7 +123,7 @@ own scenes.
 
 **Scenes are real Hue scenes**, including those created in the Hue app. Recalling one
 is a single request the bridge executes. Saving creates a genuine Hue scene in that
-room. Only scenes Lumo created are offered for deletion, since a scene made elsewhere
+room. Only scenes Vesta created are offered for deletion, since a scene made elsewhere
 may be wired to a routine or a switch.
 
 Rapid scene switching is coalesced: Hue applies a scene as a transition, and
@@ -160,7 +160,7 @@ resize handle: menu-bar popovers on macOS are not resizable.
 A Hue bulb accepts control from one bonded controller. Where the Hue app has already
 bonded with a bulb, it keeps that bond: macOS is not offered a pairing exchange, and
 every write is refused with `Encryption is insufficient`. This is a property of the
-bulbs, not a gap in the transport — `Sources/LumoBLE` implements the full control
+bulbs, not a gap in the transport — `Sources/VestaBLE` implements the full control
 service and drives a bulb that is free to bond.
 
 The bridge is the better path regardless: no bond, no range limit, no ten-bulb
@@ -179,7 +179,7 @@ DEVELOPER_DIR=/Applications/Xcode-beta.app/Contents/Developer swift test
 CI builds both variants, runs the tests, and runs `tools/check-boundaries.sh` and
 `tools/check-no-secrets.sh` on every push.
 
-Contract tests in `Tests/LumoBridgeTests` decode recorded bridge responses. The
+Contract tests in `Tests/VestaBridgeTests` decode recorded bridge responses. The
 bridge is third-party firmware whose payload shape changes without notice, so the
 fixtures cover the parts most likely to shift: partial events, rooms listing devices
 rather than lights, `status.active`, and gradient point counts. They need no
@@ -195,7 +195,7 @@ unsandboxed binary from `.build`; the signed bundle cannot write outside its
 container.
 
 ```bash
-.build/release/Lumo --snapshot /tmp/lumo-shots
+.build/release/Vesta --snapshot /tmp/vesta-shots
 ```
 
 Capturing Liquid Glass requires Screen Recording permission: glass is composited by
@@ -206,12 +206,12 @@ for each file.
 
 Shots are taken in the popover's own material over a fixed neutral gradient, so they
 show the app's real translucency and stay identical run to run.
-`LUMO_SNAPSHOT_BACKDROP=desktop` uses the actual wallpaper instead — for local
+`VESTA_SNAPSHOT_BACKDROP=desktop` uses the actual wallpaper instead — for local
 inspection only, never for anything committed.
 
 ## Diagnostics
 
-Lumo sends no telemetry, so diagnostics are produced after the fact.
+Vesta sends no telemetry, so diagnostics are produced after the fact.
 
 **Copy Diagnostics** in the gear menu puts a health report on the clipboard: build
 and OS versions, which appearance the binary targets, bridge address and key
@@ -219,14 +219,14 @@ fingerprint, time since the last sync and last pushed event, and counts of light
 rooms and scenes. It contains no light, room or scene names — reports get pasted in
 public.
 
-**Logs** go to the unified log under subsystem `dev.lumo.Lumo`, categories
+**Logs** go to the unified log under subsystem `io.github.ahwkuepper.Vesta`, categories
 `transport`, `store`, `ui` and `setup`. Light, room and scene names are never
 written to the log at all, and failures are recorded as fixed strings — so a log is
 safe to read, and safe to hand to someone else, without exposing what is in your
 home.
 
 ```bash
-log show --predicate 'subsystem == "dev.lumo.Lumo"' --last 1h --info --debug
+log show --predicate 'subsystem == "io.github.ahwkuepper.Vesta"' --last 1h --info --debug
 ```
 
 Every failure path reports through `LightStore.report`, which logs it and raises a
@@ -235,10 +235,10 @@ banner in the popover.
 ## Layout
 
 ```
-Sources/LumoKit    domain model, LightTransport, SimulatedTransport, scenes
-Sources/LumoBLE    the only target that imports CoreBluetooth
-Sources/LumoBridge Hue Bridge over the local CLIP v2 API
-Sources/Lumo       menu-bar app, plus the offscreen snapshot renderer
+Sources/VestaKit    domain model, LightTransport, SimulatedTransport, scenes
+Sources/VestaBLE    the only target that imports CoreBluetooth
+Sources/VestaBridge Hue Bridge over the local CLIP v2 API
+Sources/Vesta       menu-bar app, plus the offscreen snapshot renderer
 ```
 
 `LightTransport` is the seam between the domain model and any particular protocol.
@@ -246,6 +246,13 @@ Sources/Lumo       menu-bar app, plus the offscreen snapshot renderer
 The menu bar item is an `NSStatusItem` with an `NSPopover`, not SwiftUI's
 `MenuBarExtra`. `MenuBarExtra(.window)` does not keep its panel anchored to the status
 item across content-size changes.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Note that this repository receives
+synthesised snapshots from a private tree, so a pull request lands by being applied
+and republished rather than merged — the details are there, and worth reading before
+you spend time on one.
 
 ## Security
 

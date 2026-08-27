@@ -1,0 +1,15 @@
+{"errors":[],"data":[
+ {"id":"5ce1e5ce-0000-4000-8000-000000000001","type":"scene",
+  "metadata":{"name":"Evening","appdata":"vesta"},
+  "group":{"rid":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","rtype":"room"},
+  "status":{"active":"static","last_recall":"2026-08-24T04:55:40.060Z"}},
+ {"id":"5ce1e5ce-0000-4000-8000-000000000002","type":"scene",
+  "metadata":{"name":"Handmade","image":{"rid":"77777777-7777-4777-8777-777777777777",
+    "rtype":"public_image"}},
+  "group":{"rid":"aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa","rtype":"room"},
+  "status":{"active":"inactive"}},
+ {"id":"5ce1e5ce-0000-4000-8000-000000000003","type":"scene",
+  "metadata":{"name":"Zone scene"},
+  "group":{"rid":"cccccccc-cccc-4ccc-8ccc-cccccccccccc","rtype":"zone"},
+  "status":{"active":"inactive"}}
+]}
