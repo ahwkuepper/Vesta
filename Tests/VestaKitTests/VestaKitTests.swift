@@ -7,6 +7,20 @@ import AppKit
 /// none of this is testable against a physical bulb someone might have switched
 /// off at the wall.
 
+/// Waits for an asynchronous condition — one that has to ask the transport rather
+/// than read the store.
+@MainActor
+private func pollAsync(timeout: Duration = .seconds(10),
+                       every interval: Duration = .milliseconds(50),
+                       until condition: () async -> Bool) async -> Bool {
+    let deadline = ContinuousClock.now + timeout
+    while ContinuousClock.now < deadline {
+        if await condition() { return true }
+        try? await Task.sleep(for: interval)
+    }
+    return await condition()
+}
+
 /// Waits for a condition, up to `timeout`. Returns false if it never held.
 @MainActor
 private func poll(timeout: Duration = .seconds(10),
@@ -150,22 +164,29 @@ struct LightStoreTests {
 
     @Test("Recalling a scene reconciles from the transport, not from a guess")
     func recallScene() async throws {
-        let (store, _) = await makeStore()
+        let (store, transport) = await makeStore()
         let room = try #require(store.rooms.first)
         await store.saveScene(named: "Bright", in: room)
         let scene = try #require(store.scenes.first)
 
+        // Wait for the TRANSPORT to be off, not just the store. setRoomPower moves
+        // the local model immediately and reaches the transport on a detached task,
+        // so polling the store alone returns on the first check and leaves that
+        // write in flight. It could then land after the recall below, turning the
+        // lights back off in the transport and making the store's later resync read
+        // "off" forever — a race that never fires on an idle machine and does on a
+        // loaded runner.
         store.setRoomPower(false, room: room)
-        _ = await poll { store.lights.allSatisfy { !$0.state.isOn } }
+        let wentOff = await pollAsync {
+            (try? await transport.fetchLights())?.allSatisfy { !$0.state.isOn } ?? false
+        }
+        #expect(wentOff)
 
         store.recall(scene)
 
         // The simulator's recall turns everything on; the store must pick that up by
-        // reading back rather than predicting it. Waited for rather than slept
-        // through: recall() settles a burst, waits out the transition and then
-        // resyncs, which took longer than a fixed sleep allowed on a loaded runner.
-        let settled = await poll { store.lights.allSatisfy { $0.state.isOn } }
-        #expect(settled)
+        // reading back rather than predicting it.
+        #expect(await poll { store.lights.allSatisfy { $0.state.isOn } })
     }
 }
 
