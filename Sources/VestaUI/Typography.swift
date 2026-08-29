@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import SwiftUI
 
 /// The app's type scale, named by what each role does rather than by point size.

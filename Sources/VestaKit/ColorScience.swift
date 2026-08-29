@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// Conversions between what the bulb speaks and what we can draw on screen.

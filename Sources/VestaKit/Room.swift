@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// A room as the bridge defines it. Rooms live on the bridge, shared with the Hue

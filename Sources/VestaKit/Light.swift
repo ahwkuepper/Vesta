@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// A controllable bulb. `id` is the CoreBluetooth peripheral identifier, which is

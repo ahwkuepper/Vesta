@@ -82,7 +82,26 @@ Each item below closes a hole that opens the moment someone else's module ships.
    bounded response sizes and timeouts, credentials scoped, and a stated
    authentication model.
 7. **Release integrity.** Signed and notarised builds, published checksums, and
-   instructions to rebuild from source and compare.
+   instructions to rebuild from source and compare. What holds today:
+
+   - Signing and notarisation run on the maintainer's machine. The Developer ID
+     private key exists in one login keychain and is never uploaded anywhere,
+     including to CI. **This repository holds no secrets of any kind**, so a
+     compromise of the repository or of GitHub Actions cannot produce a signed
+     Vesta.
+   - The signing key and the notarisation key are held separately, so an attacker
+     needs two compromises, and `xcrun notarytool history` remains a tripwire that
+     fires on the first.
+   - CI rebuilds the unsigned binary from the tag and records its hash in a public
+     transparency log via OIDC — no stored credential. `tools/release.sh sign`
+     refuses to sign a binary that attestation does not match.
+   - Each release publishes a manifest: commit, unsigned hash, dmg hash, Xcode
+     build, deployment target, architectures. After a key compromise this is the
+     only way a user can tell their copy from an attacker's.
+
+   *Gap:* nothing on a user's Mac requires any of this. The Homebrew cask's pinned
+   checksum is the only place a hash is enforced rather than published, and it binds
+   only people who install that way. This is transparency, not enforcement.
 
 ## Reporting
 

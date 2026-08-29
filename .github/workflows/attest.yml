@@ -1,0 +1,70 @@
+name: Attest release build
+
+# Records, in a public transparency log, the SHA-256 of the unsigned binary built
+# from a tag — before anyone signs anything.
+#
+# This holds no secrets. Signing and notarisation happen on the maintainer's machine
+# and the Developer ID key is never uploaded anywhere (see docs/RELEASING.md). What
+# CI contributes is the half that needs no credential: an independent rebuild whose
+# hash is written somewhere the maintainer cannot quietly change afterwards.
+#
+# The release script refuses to sign a binary whose hash does not match the
+# attestation. Without that check this workflow would be decoration.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to attest
+        required: true
+
+permissions:
+  contents: read
+  id-token: write        # OIDC, so no long-lived secret is stored
+  attestations: write
+
+jobs:
+  attest:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      # The build path is part of the input: it is embedded in the binary, so a
+      # different path gives a different hash. Every rebuild — here, and in
+      # tools/verify-release.sh — uses the same fixed path.
+      - name: Build the unsigned binary at the canonical path
+        run: |
+          CANONICAL=/private/tmp/vesta-verify/Vesta
+          mkdir -p "$(dirname "$CANONICAL")"
+          cp -R "$GITHUB_WORKSPACE" "$CANONICAL"
+          cd "$CANONICAL"
+
+          TARGET=$(awk '/^macos-target:/ {print $2}' "release/${{ inputs.tag || github.ref_name }}.txt")
+          echo "target: $TARGET"
+
+          VESTA_MACOS_TARGET="$TARGET" swift build -c release --product Vesta \
+            --arch arm64 --arch x86_64 \
+            -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist \
+            -Xlinker "$CANONICAL/Info.plist"
+
+          shasum -a 256 .build/release/Vesta | tee "$GITHUB_WORKSPACE/unsigned.sha256"
+          cp .build/release/Vesta "$GITHUB_WORKSPACE/Vesta-unsigned"
+
+      - name: Compare against the manifest committed at the tag
+        run: |
+          WANT=$(awk '/^unsigned-sha256:/ {print $2}' "release/${{ inputs.tag || github.ref_name }}.txt")
+          GOT=$(awk '{print $1}' unsigned.sha256)
+          echo "manifest: $WANT"
+          echo "rebuilt:  $GOT"
+          if [ "$WANT" != "$GOT" ]; then
+            echo "::error::The tag's manifest does not match an independent rebuild."
+            exit 1
+          fi
+
+      - uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: Vesta-unsigned
