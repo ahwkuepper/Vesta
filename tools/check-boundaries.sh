@@ -89,7 +89,13 @@ else
 fi
 
 echo "== no cleartext or third-party hosts =="
-hosts=$(grep -rhoE 'https?://[a-zA-Z0-9.-]+' Sources/ | sort -u || true)
+# Two exceptions, enumerated rather than pattern-matched: the About panel hands
+# these to the browser on an explicit click. Vesta makes no request, receives no
+# response, and sends nothing — no version, no identifier, no timestamp. Any other
+# host still fails the build.
+ALLOWED_HOSTS='^https://github\.com/ahwkuepper/Vesta$'
+hosts=$(grep -rhoE 'https?://[a-zA-Z0-9./-]+' Sources/ \
+        | sed 's|/releases$||' | sort -u | grep -vE "$ALLOWED_HOSTS" || true)
 if [ -n "$hosts" ]; then
     for h in $hosts; do note "hard-coded host: $h"; done
 else

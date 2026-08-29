@@ -36,9 +36,21 @@ public struct BridgeCredentials: Sendable, Codable, Equatable {
     /// reliable way back to a bridge whose DHCP lease changed — the name follows
     /// the device, so no browsing is needed.
     public var localHostname: String? {
+        guard BridgeCredentials.isWellFormed(bridgeID: bridgeID) else { return nil }
         let id = bridgeID.lowercased()
-        guard id.count == 16, id.dropFirst(6).prefix(4) == "fffe" else { return nil }
         return "\(id.prefix(6))\(id.suffix(6)).local"
+    }
+
+    /// A bridge ID is a MAC widened to EUI-64: 16 hex characters with `fffe` in the
+    /// middle. The one definition — pairing gates candidates on it, and the hostname
+    /// derivation refuses anything it rejects. They disagreed once: the derivation
+    /// checked only the length and the `fffe`, so a stored ID containing non-hex
+    /// characters produced a plausible-looking `.local` name to connect to.
+    public static func isWellFormed(bridgeID: String) -> Bool {
+        let id = bridgeID.lowercased()
+        return id.count == 16
+            && id.allSatisfy { $0.isHexDigit }
+            && id.dropFirst(6).prefix(4) == "fffe"
     }
 
     public init(address: String, bridgeID: String, appKey: String,
