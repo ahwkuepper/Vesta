@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 
 /// Minimal lock box, for state touched from arbitrary Network.framework and

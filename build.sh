@@ -10,10 +10,21 @@ ROOT="$PWD"
 
 CONFIG="${1:-release}"
 
+# Release mode: for anything that gets signed with a Developer ID and handed to
+# someone else. It pins the toolchain, builds universal, and refuses to fall back
+# to an ad-hoc signature.
+RELEASE=0
+[ "${2:-}" = "--release" ] && RELEASE=1
+
 # SwiftUI's @State / @Bindable are macros, and the SwiftUIMacros plugin that
 # expands them ships inside Xcode — Command Line Tools alone cannot build this.
 # DEVELOPER_DIR selects a toolchain without needing sudo xcode-select.
 if [ -z "${DEVELOPER_DIR:-}" ]; then
+    if [ "$RELEASE" = "1" ]; then
+        echo "error: --release requires DEVELOPER_DIR to be set explicitly." >&2
+        echo "       A release must not depend on which Xcode happens to be installed." >&2
+        exit 1
+    fi
     for candidate in /Applications/Xcode-beta.app /Applications/Xcode.app; do
         if [ -d "$candidate/Contents/Developer" ]; then
             export DEVELOPER_DIR="$candidate/Contents/Developer"
@@ -25,9 +36,33 @@ if [ -z "${DEVELOPER_DIR:-}" ]; then
     echo "error: Xcode not found. Vesta needs Xcode for the SwiftUI macro plugin." >&2
     exit 1
 fi
-echo "[toolchain] $DEVELOPER_DIR"
 
-swift build -c "$CONFIG" --product Vesta \
+XCODE_BUILD=$(defaults read "$(dirname "$(dirname "$DEVELOPER_DIR")")/Contents/version" \
+    ProductBuildVersion 2>/dev/null || echo unknown)
+echo "[toolchain] $DEVELOPER_DIR ($XCODE_BUILD)"
+
+# A published binary must not be built against a pre-release SDK: beta toolchains
+# behave differently from released ones, and Apple's pre-release terms are not a
+# basis on which to ship to strangers.
+if [ "$RELEASE" = "1" ]; then
+    PINNED=$(cat "$ROOT/.xcode-build-version" 2>/dev/null || echo "")
+    case "$DEVELOPER_DIR" in
+        *Xcode-beta*) echo "error: refusing to build a release with a beta Xcode." >&2; exit 1 ;;
+    esac
+    if [ -n "$PINNED" ] && [ "$XCODE_BUILD" != "$PINNED" ]; then
+        echo "error: release pins Xcode $PINNED; this is $XCODE_BUILD." >&2
+        echo "       The published hash is only reproducible on the pinned toolchain." >&2
+        exit 1
+    fi
+fi
+
+# Universal for a release: macOS 14 runs on Intel, and Rosetta translates x86_64 to
+# arm64, not the reverse — an arm64-only build simply will not launch there.
+ARCHS=""
+[ "$RELEASE" = "1" ] && ARCHS="--arch arm64 --arch x86_64"
+
+# shellcheck disable=SC2086
+swift build -c "$CONFIG" --product Vesta $ARCHS \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$ROOT/Info.plist"
 
 APP="build/Vesta.app"
@@ -45,8 +80,15 @@ sed "s|<key>LSMinimumSystemVersion</key><string>[^<]*</string>|<key>LSMinimumSys
 # every rebuild, which makes the sandbox look like a different app each time and
 # re-prompts for keychain access to the bridge key. Create one with
 # ./tools/make-signing-identity.sh.
-IDENTITY="Vesta Development"
+IDENTITY="${VESTA_SIGNING_IDENTITY:-Vesta Development}"
 if ! security find-identity -v -p codesigning | grep -q "$IDENTITY"; then
+    if [ "$RELEASE" = "1" ]; then
+        # Failing open to ad-hoc here would produce an unsigned artefact from a
+        # locked keychain and only be caught at notarisation, if at all.
+        echo "error: signing identity '$IDENTITY' not found, and --release will not" >&2
+        echo "       fall back to an ad-hoc signature." >&2
+        exit 1
+    fi
     echo "[codesign] no '$IDENTITY' identity — falling back to ad-hoc (expect keychain prompts)"
     IDENTITY="-"
 fi

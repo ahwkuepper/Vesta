@@ -27,6 +27,12 @@ connection; macOS has no LAN-only entitlement. The check is structural, not a ke
 guarantee. A choke point rejecting non-private address ranges would close this and is
 the highest-value outstanding security work.
 
+*Note on updates:* Sparkle is the standard macOS answer and is excluded twice over —
+it is a third-party dependency (Article 2) and it polls a remote appcast (Article 1).
+Neither is negotiable. How users learn about new versions is documented in the
+README instead: Homebrew, a watch subscription, or a feed reader, each of which puts
+the network call in software the user already chose.
+
 ## Article 2 — No third-party dependencies
 
 Apple frameworks only. A dependency runs with the app's entitlements, sandbox and

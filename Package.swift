@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 // swift-tools-version: 6.0
 import PackageDescription
 import Foundation

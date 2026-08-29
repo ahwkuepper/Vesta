@@ -81,7 +81,18 @@ Development history belongs in commit messages, not in the source.
 
 ## Licence and sign-off
 
-Contributions are licensed under this project's [MIT licence](LICENSE). There is no
-CLA, but every commit must carry a `Signed-off-by` line certifying you have the right
-to submit it under that licence — the [Developer Certificate of
-Origin](https://developercertificate.org). `git commit -s` adds it.
+Contributions are licensed under this project's [Apache-2.0 licence](LICENSE), on
+the terms of section 5 of that licence: what you send in goes out under the same
+licence unless you say otherwise in writing.
+
+There is no CLA. Every commit **in a pull request** must carry a `Signed-off-by`
+line certifying you have the right to submit it under that licence — the [Developer
+Certificate of Origin](https://developercertificate.org). `git commit -s` adds it.
+Snapshot commits published from the private tree are exempt, since they have no
+outside author to certify.
+
+You keep the copyright in what you write. Vesta stays open source under Apache-2.0.
+The maintainer may also distribute the software, including your contribution, under
+separate commercial terms — a paid build, for instance — as Apache-2.0 permits. That
+does not remove or narrow anyone's rights under Apache-2.0, and it never will: every
+version published under it stays available under it.

@@ -1,3 +1,6 @@
+// Copyright 2026 Andreas Küpper
+// SPDX-License-Identifier: Apache-2.0
+
 import Foundation
 // CBUUID is an unaudited Objective-C type and is not Sendable, but these instances
 // are immutable constants. @preconcurrency keeps the framework's Sendable gaps from

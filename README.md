@@ -44,7 +44,9 @@ menu bar.
 
 ## Requirements
 
-- macOS 14 or later
+- macOS 14 or later for the released download, which is universal (Apple silicon
+  and Intel) and uses the classic appearance. Building from source on macOS 26 or
+  later gives the Liquid Glass variant.
 - A Philips Hue Bridge on the same network
 - Xcode to build (not just Command Line Tools — SwiftUI's `@State` is a macro whose
   plugin ships inside Xcode). `build.sh` selects a toolchain via `DEVELOPER_DIR`.
@@ -213,12 +215,52 @@ width gets tested rather than assumed.
 `VESTA_SNAPSHOT_BACKDROP=desktop` uses the actual wallpaper instead — for local
 inspection only, never for anything committed.
 
+## Updates
+
+Vesta will never tell you a new version exists. Checking means asking a server
+whether you are out of date, and that server learns your version, your address and
+roughly when your Mac is awake. Article 1 has no exception for convenience.
+
+That is genuinely less convenient than an app that updates itself. Pick one:
+
+- **Homebrew** — `brew upgrade --cask vesta`. Homebrew does the checking, on your
+  schedule, with a tool you already gave network access.
+- **Watch the repository** — Watch → Custom → Releases. Email per release.
+- **A feed reader** — `https://github.com/ahwkuepper/Vesta/releases.atom`. No account
+  needed; your reader polls, Vesta does not.
+
+Security fixes are additionally published as a GitHub Security Advisory. If you
+install Vesta and do none of the above, you will not hear about one.
+
+## Verifying a release
+
+Each release publishes the commit it came from, the exact Xcode build, and the
+SHA-256 of the **unsigned** binary. `tools/verify-release.sh <tag>` rebuilds that
+binary and compares it.
+
+The unsigned binary is bit-for-bit reproducible given the same source, toolchain,
+deployment target, architectures **and absolute build path** — the path is embedded
+in the binary, so the script pins it. Measured: two independent clones built at the
+same path produce identical bytes; at paths differing by one character they differ
+in tens of thousands.
+
+The signed `.dmg` is not reproducible and never can be: a signature embeds a
+certificate and a timestamp from Apple, so no two signing runs match and only the
+maintainer can produce one. Its published hash is an integrity check on one
+artefact, not a reproducibility claim.
+
+What this is not: nothing on your Mac *requires* that check, and to my knowledge
+nobody but the maintainer has run it. This is transparency, not enforcement, and it
+is one person. If you want the strongest version available, build from source — the
+instructions are the ones CI runs.
+
 ## Diagnostics
 
 Vesta sends no telemetry, so diagnostics are produced after the fact.
 
 **Copy Diagnostics** in the gear menu puts a health report on the clipboard: build
-and OS versions, which appearance the binary targets, bridge address and key
+and OS versions, which appearance the binary targets, how the bridge is reached
+(the kind of address, never the address itself), the bridge and key
 fingerprint, time since the last sync and last pushed event, and counts of lights,
 rooms and scenes. It contains no light, room or scene names — reports get pasted in
 public.
@@ -272,4 +314,9 @@ See [SECURITY.md](SECURITY.md) for the threat model and what holds today, and
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+Apache-2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+
+Apache rather than MIT for two clauses MIT lacks: section 6 grants no trademark
+rights, so the licence to copy the code is not a licence to call it Vesta, and
+section 5 makes inbound-equals-outbound explicit, which is what a contributor
+licence agreement would otherwise be for. There is no CLA.

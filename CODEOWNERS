@@ -10,4 +10,4 @@
 /entitlements.plist     @ahwkuepper
 /Info.plist             @ahwkuepper
 /Sources/VestaBridge/    @ahwkuepper
-/Sources/Vesta/Diagnostics.swift @ahwkuepper
+/Sources/VestaDiagnostics/ @ahwkuepper
