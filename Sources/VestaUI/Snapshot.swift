@@ -9,6 +9,7 @@ import AppKit
 // keeps one source tree building against both.
 @preconcurrency import ScreenCaptureKit
 import VestaKit
+import VestaBridge
 
 /// Renders the popover offscreen to PNG.
 ///
@@ -65,6 +66,20 @@ public enum Snapshot {
             ProcessInfo.processInfo.environment["VESTA_SNAPSHOT_TEXT"] == "large"
             ? .accessibility1 : .large
 
+        // Setup cannot be reached once a bridge is paired, so it is rendered
+        // directly. Every step, because the ones nobody looks at are the ones that
+        // ship broken.
+        for (name, step) in pairingSteps() {
+            let controller = PairingController()
+            controller.forceStep(step)
+            try await render(PairingView(controller: controller, onPaired: {})
+                                .frame(width: 330)
+                                .background(.background)
+                                .dynamicTypeSize(textSize),
+                             appearance: .darkAqua,
+                             to: directory.appendingPathComponent("\(name)-dark.png"))
+        }
+
         for (name, model) in scenarios() {
             for (suffix, appearance) in [("dark", NSAppearance.Name.darkAqua),
                                          ("light", NSAppearance.Name.aqua)] {
@@ -75,6 +90,22 @@ public enum Snapshot {
                                  to: directory.appendingPathComponent("\(name)-\(suffix).png"))
             }
         }
+    }
+
+    /// Every state of first-run setup, named so the files sort together.
+    private static func pairingSteps() -> [(String, PairingController.Step)] {
+        let found = BridgeDiscovery.Candidate(
+            bridgeID: "aabbccfffe112233", host: "aabbcc112233.local",
+            displayName: "Hue Bridge - 112233")
+        return [
+            ("10-pair-start",   .idle),
+            ("11-pair-search",  .searching),
+            ("12-pair-found",   .choosing([found])),
+            ("13-pair-none",    .choosing([])),
+            ("14-pair-button",  .pressButton(host: found.host, secondsLeft: 47)),
+            ("15-pair-done",    .paired),
+            ("16-pair-failed",  .failed("Press the round button on the Bridge, then try again.")),
+        ]
     }
 
     /// Expand the gradient lamp in one scenario so the palette and effect rows get

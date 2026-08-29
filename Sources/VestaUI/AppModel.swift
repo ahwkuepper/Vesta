@@ -65,6 +65,14 @@ final class AppModel {
         }
     }
 
+    /// Adopts credentials that pairing has just written.
+    ///
+    /// Same path as recovery — the Keychain is the single source of truth for
+    /// whether a bridge is paired, so nothing is passed in by hand.
+    func adoptNewPairing() async {
+        await recoverBridgeIfPossible()
+    }
+
     /// Re-reads pairing state and adopts the bridge if it has become readable.
     ///
     /// Called on every popover open, so a Keychain read that failed at launch — a

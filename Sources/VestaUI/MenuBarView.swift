@@ -9,6 +9,7 @@ import VestaDiagnostics
 /// scenes, then its individual lights. That order matches how often each is used,
 /// not how complex each one is.
 struct MenuBarView: View {
+    @State private var pairing = PairingController()
     @Bindable var model: AppModel
     /// Snapshot rendering needs a row already open to capture the expanded controls.
     var initialExpandedID: Light.ID? = nil
@@ -233,6 +234,14 @@ struct MenuBarView: View {
                 + "(error \(status)). Your bridge is still paired — unlock your "
                 + "login keychain, or re-pair if this persists."))
         }
+        // Nothing paired: offer setup rather than an indefinite "Looking for lights…".
+        // A downloaded Vesta used to dead-end here, because pairing existed only as a
+        // command-line flag.
+        if !model.isBridgePaired && model.mode != .bluetooth {
+            return AnyView(PairingView(controller: pairing) {
+                Task { await model.adoptNewPairing() }
+            })
+        }
         return AnyView(VStack(spacing: 8) {
             Image(systemName: "wifi.router")
                 .font(.messageGlyph)
@@ -295,10 +304,6 @@ struct MenuBarView: View {
                 Divider()
             }
 
-            Text("Not affiliated with Signify or Philips Hue")
-                .font(.finePrint)
-            Divider()
-
             Button("Copy Diagnostics") {
                 let report = Diagnostics.report(store: store, mode: model.mode)
                 // Local only: the general pasteboard syncs to the user's other
@@ -309,6 +314,12 @@ struct MenuBarView: View {
                 Log.ui.info("diagnostics copied to the pasteboard")
             }
             .help("Copies a health report — no light or room names, nothing sent anywhere")
+
+            Divider()
+
+            Button("About Vesta…") { AboutWindow.show() }
+            Button("Releases…") { NSWorkspace.shared.open(AboutView.releases) }
+                .help("Opens the releases page in your browser. Vesta never checks for updates itself")
 
             Divider()
 

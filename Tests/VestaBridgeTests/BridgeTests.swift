@@ -323,3 +323,40 @@ struct CredentialStateTests {
         #expect(!BridgeStore.isNotPairedStatus(errSecDecode))
     }
 }
+
+@Suite("Bridge discovery")
+struct DiscoveryTests {
+    // Discovery never resolves an mDNS endpoint — resolving a `.service` endpoint
+    // never completes under the sandbox. It reads the bridge ID out of the TXT
+    // record and derives the `.local` name, which is the same derivation that
+    // recovers from a DHCP change. That derivation is the part worth testing.
+
+    @Test("A candidate's host is the ID with the EUI-64 padding removed")
+    func hostDerivation() {
+        let credentials = BridgeCredentials(address: "", bridgeID: "aabbccfffe112233",
+                                            appKey: "")
+        #expect(credentials.localHostname == "aabbcc112233.local")
+    }
+
+    @Test("A malformed bridge ID yields no host, so it is never offered")
+    func malformedIDRejected() {
+        for bad in ["", "aabbcc", "aabbccdddd112233", "zzbbccfffe112233"] {
+            let credentials = BridgeCredentials(address: "", bridgeID: bad, appKey: "")
+            #expect(credentials.localHostname == nil)
+            // The same shape check gates a TXT record before it becomes a candidate.
+            #expect(!BridgePairing.isWellFormed(bridgeID: bad))
+        }
+    }
+
+    @Test("Candidates are identified by bridge ID, so one bridge appears once")
+    func candidateIdentity() {
+        let a = BridgeDiscovery.Candidate(bridgeID: "aabbccfffe112233",
+                                          host: "aabbcc112233.local",
+                                          displayName: "Hue Bridge - 112233")
+        let b = BridgeDiscovery.Candidate(bridgeID: "aabbccfffe112233",
+                                          host: "aabbcc112233.local",
+                                          displayName: "Hue Bridge - 112233 (2)")
+        #expect(a.id == b.id)
+        #expect(a != b)
+    }
+}

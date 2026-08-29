@@ -468,6 +468,21 @@ public enum BridgeCLI {
     }
 
     /// Reports how Vesta would find the bridge again, for diagnosing recovery.
+    /// Browses for bridges with nothing stored, the way a first run does.
+    public static func scan() async -> Int32 {
+        say("browsing for _hue._tcp …")
+        let found = await BridgeDiscovery.find()
+        guard !found.isEmpty else {
+            say("no bridge answered. Check it is powered on and on this network.")
+            return 1
+        }
+        for candidate in found {
+            say("  \(candidate.displayName)  →  \(candidate.host)")
+        }
+        say("\(found.count) bridge(s) found")
+        return 0
+    }
+
     public static func discover() async -> Int32 {
         guard let credentials = BridgeStore.load() else {
             say("no bridge credentials — run --pair-bridge <host> first")

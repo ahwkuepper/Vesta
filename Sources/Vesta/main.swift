@@ -88,6 +88,10 @@ if arguments.contains("--diagnose") {
     runCLI { await BridgeCLI.diagnose() }
 }
 
+if arguments.contains("--scan") {
+    runCLI { await BridgeCLI.scan() }
+}
+
 if arguments.contains("--discover") {
     runCLI { await BridgeCLI.discover() }
 }

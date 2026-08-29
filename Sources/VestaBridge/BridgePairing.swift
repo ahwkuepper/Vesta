@@ -63,10 +63,7 @@ public final class BridgePairing: NSObject, @unchecked Sendable {
     /// A bridge ID is a MAC widened to EUI-64: 16 hex characters with `fffe` in the
     /// middle. An empty or arbitrary string must never reach the pin.
     static func isWellFormed(bridgeID: String) -> Bool {
-        let id = bridgeID.lowercased()
-        return id.count == 16
-            && id.allSatisfy { $0.isHexDigit }
-            && id.dropFirst(6).prefix(4) == "fffe"
+        BridgeCredentials.isWellFormed(bridgeID: bridgeID)
     }
 
     /// Polls until the link button is pressed or the deadline passes.
