@@ -237,7 +237,11 @@ struct MenuBarView: View {
         // Nothing paired: offer setup rather than an indefinite "Looking for lights…".
         // A downloaded Vesta used to dead-end here, because pairing existed only as a
         // command-line flag.
-        if !model.isBridgePaired && model.mode != .bluetooth {
+        // Reached only when the light list is empty, so there is nothing to hide.
+        // Do NOT also test the mode: an unpaired app is always in Bluetooth mode,
+        // because that is the fallback when no credentials exist — testing for it
+        // excluded the one case this branch is for.
+        if !model.isBridgePaired {
             return AnyView(PairingView(controller: pairing) {
                 Task { await model.adoptNewPairing() }
             })
