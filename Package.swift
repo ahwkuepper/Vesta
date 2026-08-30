@@ -35,7 +35,11 @@ let package = Package(
 
         // The health report. Its own target because both the interface and the CLI
         // need it, and the CLI must not have to depend on the interface to get it.
-        .target(name: "VestaDiagnostics", dependencies: ["VestaKit", "VestaBridge"]),
+        // glassSettings because Diagnostics reports which variant the binary is, and
+        // VESTA_GLASS is defined per target: without it here the report said
+        // "classic" for every build, including a Liquid Glass one.
+        .target(name: "VestaDiagnostics", dependencies: ["VestaKit", "VestaBridge"],
+                swiftSettings: glassSettings),
 
         // Command line modes: pairing, verification, hardware self-tests. No UI.
         .target(name: "VestaCLI",

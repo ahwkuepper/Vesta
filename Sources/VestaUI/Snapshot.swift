@@ -66,9 +66,20 @@ public enum Snapshot {
             ProcessInfo.processInfo.environment["VESTA_SNAPSHOT_TEXT"] == "large"
             ? .accessibility1 : .large
 
-        // Setup cannot be reached once a bridge is paired, so it is rendered
-        // directly. Every step, because the ones nobody looks at are the ones that
-        // ship broken.
+        // Through MenuBarView, not PairingView directly. Rendering the destination
+        // proved the view was fine while the route to it was unreachable: the gate
+        // also tested the transport mode, and an unpaired app is always in Bluetooth
+        // mode, so setup could never appear. A snapshot that skips the gate cannot
+        // catch that.
+        try await render(MenuBarView(model: AppModel(previewStore:
+                            LightStore(transport: SimulatedTransport(lights: []))),
+                                     rendersFullHeight: true)
+                            .dynamicTypeSize(textSize),
+                         appearance: .darkAqua,
+                         to: directory.appendingPathComponent("09-first-run-dark.png"))
+
+        // Then each step of setup on its own, because the ones nobody looks at are
+        // the ones that ship broken.
         for (name, step) in pairingSteps() {
             let controller = PairingController()
             controller.forceStep(step)
