@@ -12,18 +12,35 @@ import VestaUI
 ///
 /// Async CLI work is driven by pumping the run loop rather than blocking it, so
 /// URLSession delegate callbacks and TCC prompts can still be serviced.
-private func runCLI(_ work: @escaping @Sendable () async -> Int32) -> Never {
-    nonisolated(unsafe) var finished = false
-    nonisolated(unsafe) var code: Int32 = 1
+/// The exit code, handed from the detached task back to the pumping loop.
+///
+/// Was a pair of `nonisolated(unsafe)` locals captured by the task — which asserted
+/// thread safety rather than providing it, and which Swift 6.3 accepts and 6.4
+/// rejects. A lock makes the sharing real, and makes the closure genuinely Sendable
+/// instead of exempt.
+private final class Outcome: @unchecked Sendable {
+    private let lock = NSLock()
+    private var code: Int32?
 
-    Task.detached {
-        code = await work()
-        finished = true
+    var result: Int32? {
+        lock.lock(); defer { lock.unlock() }
+        return code
     }
-    while !finished {
+
+    func finish(_ value: Int32) {
+        lock.lock(); defer { lock.unlock() }
+        code = value
+    }
+}
+
+private func runCLI(_ work: @escaping @Sendable () async -> Int32) -> Never {
+    let outcome = Outcome()
+    Task.detached { outcome.finish(await work()) }
+
+    while outcome.result == nil {
         RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
     }
-    exit(code)
+    exit(outcome.result ?? 1)
 }
 
 let arguments = CommandLine.arguments
