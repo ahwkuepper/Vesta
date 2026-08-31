@@ -68,7 +68,29 @@ swift build -c "$CONFIG" --product Vesta $ARCHS \
 APP="build/Vesta.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp ".build/$CONFIG/Vesta" "$APP/Contents/MacOS/Vesta"
+# A universal build writes the fat binary under .build/apple/Products; the
+# .build/<config> symlink keeps pointing at the single-arch directory, so copying
+# from it silently ships an arm64-only binary while the universal build succeeds
+# beside it. That is exactly what happened once.
+if [ "$RELEASE" = "1" ]; then
+    CAP=$(printf '%s' "$CONFIG" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')
+    BUILT=".build/apple/Products/$CAP/Vesta"
+else
+    BUILT=".build/$CONFIG/Vesta"
+fi
+[ -f "$BUILT" ] || { echo "error: no binary at $BUILT" >&2; exit 1; }
+cp "$BUILT" "$APP/Contents/MacOS/Vesta"
+
+# Verify rather than assume: macOS 14 runs on Intel, and an arm64-only release
+# simply will not launch there.
+if [ "$RELEASE" = "1" ]; then
+    if ! lipo -info "$APP/Contents/MacOS/Vesta" | grep -q x86_64; then
+        echo "error: release binary is not universal — Intel Macs cannot run it." >&2
+        lipo -info "$APP/Contents/MacOS/Vesta" >&2
+        exit 1
+    fi
+    echo "[arch] $(lipo -info "$APP/Contents/MacOS/Vesta" | sed 's/.*: //')"
+fi
 # LSMinimumSystemVersion must match the variant actually built, or the classic
 # build ships metadata claiming it needs macOS 26 and LaunchServices refuses to
 # open it on the systems it was built for.
@@ -107,6 +129,6 @@ codesign --force --sign "$IDENTITY" --identifier io.github.ahwkuepper.Vesta \
 # no longer allows.
 codesign --force --sign "$IDENTITY" --identifier io.github.ahwkuepper.Vesta \
     --options runtime --timestamp \
-    ".build/$CONFIG/Vesta" 2>&1 | sed 's/^/[codesign cli] /'
+    "$BUILT" 2>&1 | sed 's/^/[codesign cli] /'
 
 echo "built: $ROOT/$APP"
