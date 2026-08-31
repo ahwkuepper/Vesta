@@ -43,7 +43,10 @@ echo "==> checking the tree"
 ./tools/check-no-secrets.sh
 ./tools/check-boundaries.sh >/dev/null && echo "  ok — boundaries"
 
-git fetch -q "$REMOTE"
+# --prune: staging is deleted whenever a promotion PR is merged with branch
+# deletion, and a stale remote-tracking ref makes the force-with-lease below fail
+# with "stale info" against a branch that no longer exists.
+git fetch -q --prune "$REMOTE"
 
 TREE=$(git rev-parse HEAD^{tree})
 MAIN=$(git rev-parse --verify -q "$REMOTE/main" || true)

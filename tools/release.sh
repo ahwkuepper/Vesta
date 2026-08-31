@@ -86,12 +86,14 @@ prepare)
 # deployment target, architectures, and absolute build path — the script pins the
 # path, because the path is embedded in the binary.
 #
+# The commit is whatever this tag points at — a hash cannot name the tree that
+# contains it.
+#
 # dmg-sha256 is an integrity check on one artefact, not a reproducibility claim: a
 # signature embeds a certificate and an Apple timestamp, so a signed bundle is never
 # byte-identical twice and only the maintainer can produce one.
 
 version:         $VERSION
-commit:          PENDING
 unsigned-sha256: $UNSIGNED_HASH
 dmg-sha256:      PENDING
 xcode-build:     $(xcode_build)
@@ -99,11 +101,11 @@ macos-target:    $VESTA_MACOS_TARGET
 architectures:   arm64 x86_64
 MANIFEST
 
+    # No commit hash in the manifest: it lives inside the tree it would describe,
+    # so writing it changes the tree and therefore the commit. The tag is the
+    # identifier, and verify-release.sh clones by tag.
     git add Info.plist "release/$TAG.txt"
     git commit -q -m "Release $VERSION"
-    sed -i '' "s|^commit:.*|commit:          $(git rev-parse HEAD)|" "release/$TAG.txt"
-    git add "release/$TAG.txt"
-    git commit -q --amend --no-edit
     git tag -f "$TAG" -m "Vesta $VERSION" >/dev/null
 
     echo
