@@ -43,8 +43,29 @@ jobs:
           cp -R "$GITHUB_WORKSPACE" "$CANONICAL"
           cd "$CANONICAL"
 
-          TARGET=$(awk '/^macos-target:/ {print $2}' "release/${{ inputs.tag || github.ref_name }}.txt")
+          MANIFEST="release/${{ inputs.tag || github.ref_name }}.txt"
+          TARGET=$(awk '/^macos-target:/ {print $2}' "$MANIFEST")
           echo "target: $TARGET"
+
+          # The binary is bit-identical only on the toolchain that produced it, so
+          # use the Xcode the manifest names. Building with a different one and then
+          # reporting a hash mismatch would read as tampering when it is only a
+          # different compiler.
+          WANT_XCODE=$(awk '/^xcode-build:/ {print $2}' "$MANIFEST")
+          FOUND=""
+          for x in /Applications/Xcode*.app; do
+            [ -d "$x" ] || continue
+            b=$(defaults read "$x/Contents/version" ProductBuildVersion 2>/dev/null || echo "?")
+            echo "  available: $x ($b)"
+            [ "$b" = "$WANT_XCODE" ] && FOUND="$x/Contents/Developer"
+          done
+          if [ -z "$FOUND" ]; then
+            echo "::error::Built with Xcode $WANT_XCODE, which is not on this runner."
+            echo "::error::Reproducing the binary needs that exact toolchain, so CI cannot attest this release."
+            exit 1
+          fi
+          export DEVELOPER_DIR="$FOUND"
+          echo "using $DEVELOPER_DIR ($WANT_XCODE)"
 
           VESTA_MACOS_TARGET="$TARGET" swift build -c release --product Vesta \
             --arch arm64 --arch x86_64 \
