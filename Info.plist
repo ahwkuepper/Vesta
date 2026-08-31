@@ -2,21 +2,31 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-    <key>CFBundleExecutable</key><string>Vesta</string>
-    <key>CFBundleIdentifier</key><string>io.github.ahwkuepper.Vesta</string>
-    <key>CFBundleName</key><string>Vesta</string>
-    <key>CFBundleDisplayName</key><string>Vesta</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>0.1</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>LSMinimumSystemVersion</key><string>26.0</string>
-    <!-- Menu-bar only: no Dock icon, no main window. -->
-    <key>LSUIElement</key><true/>
-    <key>NSLocalNetworkUsageDescription</key>
-    <string>Vesta connects to your Philips Hue Bridge on this network to control your lights.</string>
-    <key>NSBonjourServices</key>
-    <array><string>_hue._tcp</string></array>
-    <key>NSBluetoothAlwaysUsageDescription</key>
-    <string>Vesta uses Bluetooth to find and control your Philips Hue lights.</string>
+	<key>CFBundleDisplayName</key>
+	<string>Vesta</string>
+	<key>CFBundleExecutable</key>
+	<string>Vesta</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.ahwkuepper.Vesta</string>
+	<key>CFBundleName</key>
+	<string>Vesta</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>202608312220</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Vesta uses Bluetooth to find and control your Philips Hue lights.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_hue._tcp</string>
+	</array>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Vesta connects to your Philips Hue Bridge on this network to control your lights.</string>
 </dict>
 </plist>

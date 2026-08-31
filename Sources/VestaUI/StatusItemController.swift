@@ -1,4 +1,4 @@
-// Copyright 2026 Andreas Küpper
+// Copyright 2026 Andreas Kupper
 // SPDX-License-Identifier: Apache-2.0
 
 import AppKit

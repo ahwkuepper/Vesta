@@ -24,7 +24,9 @@ if [ -z "$PHASE" ] || [ -z "$VERSION" ]; then
     exit 2
 fi
 TAG="v$VERSION"
-BIN=".build/release/Vesta"
+# The universal product, not the .build/release symlink — that points at the
+# single-arch directory, so hashing it would record a binary the DMG does not carry.
+BIN=".build/apple/Products/Release/Vesta"
 
 # The shipped variant. macOS 14 reaches every machine the README claims; the Liquid
 # Glass variant stays a build-from-source option.
