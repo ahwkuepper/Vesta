@@ -65,7 +65,14 @@ VESTA_MACOS_TARGET="$want_target" swift build -c release --product Vesta \
     -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist \
     -Xlinker "$CANONICAL/Info.plist" >/dev/null
 
-got_hash=$(shasum -a 256 .build/release/Vesta | awk '{print $1}')
+# The universal product, not the .build/release symlink: that points at the
+# single-arch directory, so comparing it would fail against every published hash.
+BIN=.build/apple/Products/Release/Vesta
+if [ ! -f "$BIN" ]; then
+    echo "error: no universal binary at $BIN after building." >&2
+    exit 1
+fi
+got_hash=$(shasum -a 256 "$BIN" | awk '{print $1}')
 
 echo
 echo "    published: $want_hash"

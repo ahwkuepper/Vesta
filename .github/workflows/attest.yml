@@ -51,8 +51,14 @@ jobs:
             -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist \
             -Xlinker "$CANONICAL/Info.plist"
 
-          shasum -a 256 .build/release/Vesta | tee "$GITHUB_WORKSPACE/unsigned.sha256"
-          cp .build/release/Vesta "$GITHUB_WORKSPACE/Vesta-unsigned"
+          # A universal build writes the fat product here. .build/release is a
+          # symlink to the single-arch directory and does not even exist on a
+          # fresh runner, which is how this failed the first time it ran.
+          BIN=.build/apple/Products/Release/Vesta
+          [ -f "$BIN" ] || { echo "no universal binary at $BIN"; find .build -name Vesta -type f; exit 1; }
+          lipo -info "$BIN"
+          shasum -a 256 "$BIN" | tee "$GITHUB_WORKSPACE/unsigned.sha256"
+          cp "$BIN" "$GITHUB_WORKSPACE/Vesta-unsigned"
 
       - name: Compare against the manifest committed at the tag
         run: |

@@ -5,12 +5,14 @@
 # deployment target, architectures, and absolute build path — the script pins the
 # path, because the path is embedded in the binary.
 #
+# The commit is whatever this tag points at — a hash cannot name the tree that
+# contains it.
+#
 # dmg-sha256 is an integrity check on one artefact, not a reproducibility claim: a
 # signature embeds a certificate and an Apple timestamp, so a signed bundle is never
 # byte-identical twice and only the maintainer can produce one.
 
 version:         0.1.0
-commit:          cf4526cb26cd6066644c5dfbe98d551740b6e893
 unsigned-sha256: 1fa2c0ad8efe0060eecd5b30a95d2db4894dcd471eca61c95c65f15680db28eb
 dmg-sha256:      PENDING
 xcode-build:     17F113
