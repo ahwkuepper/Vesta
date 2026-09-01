@@ -50,8 +50,12 @@ not attest.
     tools/release.sh prepare 0.1.0
 
     tools/publish.sh --message "Release 0.1.0"
-    # merge the promotion PR, then push the tag so CI can attest it
-    git push public v0.1.0:refs/tags/v0.1.0
+    # merge the promotion PR, then tag the commit that landed on public main.
+    # Tag the public commit, never the local tag: `git push public v0.1.0` would
+    # push the private commit it points at, and the whole private history behind
+    # it, into the public repository.
+    git fetch --prune public
+    git push public public/main:refs/tags/v0.1.0
     # wait for the attest workflow to finish
 
     tools/release.sh sign 0.1.0
@@ -59,6 +63,35 @@ not attest.
     # commit the manifest's dmg hash, republish, then
     gh release create v0.1.0 --repo ahwkuepper/Vesta --prerelease \
         --notes-file CHANGELOG.md build/Vesta-0.1.0.dmg release/v0.1.0.txt
+
+## Why releases are built at a fixed path
+
+The absolute build path is embedded in the binary, so it is part of the input, and
+every rebuild — `tools/release.sh`, `tools/verify-release.sh`, the attest workflow —
+uses `/private/tmp/vesta-verify/Vesta`. Two clones at paths differing by one
+character produce binaries differing in tens of thousands of bytes.
+
+This is a workable design, not a good one: it asks every verifier to build somewhere
+specific. The obvious fix does not work, and was measured rather than assumed:
+
+- `-file-prefix-map` (plus `-ffile-prefix-map` for C) removes the source paths, but
+  not the linker's debug map. A universal binary carries 42 OSO entries holding the
+  absolute paths of the object files.
+- `-oso_prefix` does fix those, and works for a single-arch build. It cannot be
+  delivered to a universal link: passed via `-Xlinker` the linker reads the prefix
+  as an input file and fails to mmap it; routed through `-Xswiftc -Xlinker` it is
+  silently dropped.
+- Stripping afterwards is too late. `LC_UUID` is computed at link time over content
+  that still contained the paths, so `strip -S` closes the gap from 60,164 differing
+  bytes to 102 — the two per-arch UUIDs and the signature — and no further.
+
+So path-independence needs a linker flag SwiftPM cannot pass to a universal link.
+If a future toolchain plumbs `-oso_prefix` through, verification could stop caring
+where it runs, and the pinned path could go.
+
+One thing that is *not* a problem: multi-arch builds are deterministic over time.
+Two builds minutes apart at the same path are byte-identical. Single-arch builds are
+not — see the comment in `tools/verify-release.sh`.
 
 ## Two tags, deliberately
 
