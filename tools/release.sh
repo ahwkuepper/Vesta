@@ -185,6 +185,30 @@ sign)
     rm -f "build/Vesta-$VERSION.dmg"
     hdiutil create -quiet -volname "Vesta" -srcfolder build/Vesta.app \
         -ov -format UDZO "build/Vesta-$VERSION.dmg"
+
+    # The disk image needs its own signature and its own ticket. Stapling the app
+    # inside is not enough: Gatekeeper assesses the .dmg first, and an unsigned one
+    # is rejected outright with "Apple cannot check it for malicious software" —
+    # the exact dialog notarisation exists to prevent. Measured on 0.1.0, where the
+    # app inside was accepted as Notarized Developer ID while the image around it
+    # was rejected for having no usable signature.
+    echo "==> signing and notarising the disk image"
+    codesign --force --sign "${VESTA_SIGNING_IDENTITY:?set VESTA_SIGNING_IDENTITY}" \
+        --timestamp "build/Vesta-$VERSION.dmg"
+    xcrun notarytool submit --keychain-profile "vesta-notary" --wait "build/Vesta-$VERSION.dmg"
+    xcrun stapler staple "build/Vesta-$VERSION.dmg"
+
+    # Assert it rather than trust the exit codes above: this is the one check that
+    # matches what a person downloading the file will experience.
+    if ! spctl -a -t open --context context:primary-signature "build/Vesta-$VERSION.dmg" 2>/dev/null; then
+        echo "error: Gatekeeper rejects the disk image; do not publish it." >&2
+        spctl -a -vvv -t open --context context:primary-signature "build/Vesta-$VERSION.dmg" || true
+        exit 1
+    fi
+    echo "    Gatekeeper accepts the disk image"
+
+    # Hash after stapling. The ticket is written into the file, so a hash taken
+    # before it would describe a disk image nobody receives.
     DMG_HASH=$(shasum -a 256 "build/Vesta-$VERSION.dmg" | awk '{print $1}')
     sed -i '' "s|^dmg-sha256:.*|dmg-sha256:      $DMG_HASH|" "release/$TAG.txt"
 

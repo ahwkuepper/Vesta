@@ -59,6 +59,12 @@ if [ "$have_xcode" != "$want_xcode" ]; then
     echo
 fi
 
+# Both --arch flags are load-bearing, and not only because the release is universal.
+# A multi-arch build goes through a different pipeline from a plain `swift build`,
+# and only the multi-arch one is deterministic: the single-arch pipeline leaves the
+# object files' modification times in the binary's debug map, so two builds minutes
+# apart at the same path differ. Drop an --arch here to "simplify" and this script
+# starts reporting mismatches that read exactly like tampering. Measured, both ways.
 echo "==> building"
 VESTA_MACOS_TARGET="$want_target" swift build -c release --product Vesta \
     --arch arm64 --arch x86_64 \

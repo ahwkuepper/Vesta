@@ -234,15 +234,15 @@ install Vesta and do none of the above, you will not hear about one.
 
 ## Verifying a release
 
-Each release publishes the commit it came from, the exact Xcode build, and the
-SHA-256 of the **unsigned** binary. `tools/verify-release.sh <tag>` rebuilds that
-binary and compares it.
+Each release publishes the exact Xcode build, the deployment target and the SHA-256
+of the **unsigned** binary; the tag names the commit. `tools/verify-release.sh <tag>`
+rebuilds that binary and compares it.
 
 The unsigned binary is bit-for-bit reproducible given the same source, toolchain,
 deployment target, architectures **and absolute build path** — the path is embedded
-in the binary, so the script pins it. Measured: two independent clones built at the
-same path produce identical bytes; at paths differing by one character they differ
-in tens of thousands.
+in the binary, so the script pins it. Measured: this Mac and a GitHub runner, built
+from the same tag at the same path, produced identical bytes; at paths differing by
+one character they differ in tens of thousands.
 
 The signed `.dmg` is not reproducible and never can be: a signature embeds a
 certificate and a timestamp from Apple, so no two signing runs match and only the
