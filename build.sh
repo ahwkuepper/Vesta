@@ -61,13 +61,6 @@ fi
 ARCHS=""
 [ "$RELEASE" = "1" ] && ARCHS="--arch arm64 --arch x86_64"
 
-# shellcheck disable=SC2086
-swift build -c "$CONFIG" --product Vesta $ARCHS \
-    -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$ROOT/Info.plist"
-
-APP="build/Vesta.app"
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 # A universal build writes the fat binary under .build/apple/Products; the
 # .build/<config> symlink keeps pointing at the single-arch directory, so copying
 # from it silently ships an arm64-only binary while the universal build succeeds
@@ -78,6 +71,27 @@ if [ "$RELEASE" = "1" ]; then
 else
     BUILT=".build/$CONFIG/Vesta"
 fi
+
+# A release signs the binary CI attested; it must not build a fresh one. The
+# absolute build path is embedded in the Mach-O, so a build here and a build at the
+# verification path are the same program in tens of thousands of different bytes.
+# Rebuilding at this point would sign bytes nobody verified, and the published hash
+# would then describe a binary no user ever received.
+if [ -n "${VESTA_PREBUILT_BINARY:-}" ]; then
+    [ -f "$VESTA_PREBUILT_BINARY" ] \
+        || { echo "error: no prebuilt binary at $VESTA_PREBUILT_BINARY" >&2; exit 1; }
+    echo "[prebuilt] $VESTA_PREBUILT_BINARY"
+    mkdir -p "$(dirname "$BUILT")"
+    cp "$VESTA_PREBUILT_BINARY" "$BUILT"
+else
+    # shellcheck disable=SC2086
+    swift build -c "$CONFIG" --product Vesta $ARCHS \
+        -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist -Xlinker "$ROOT/Info.plist"
+fi
+
+APP="build/Vesta.app"
+rm -rf "$APP"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 [ -f "$BUILT" ] || { echo "error: no binary at $BUILT" >&2; exit 1; }
 cp "$BUILT" "$APP/Contents/MacOS/Vesta"
 
