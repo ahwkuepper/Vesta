@@ -13,7 +13,7 @@
 # byte-identical twice and only the maintainer can produce one.
 
 version:         0.1.0
-unsigned-sha256: 9f86ef2857ee242d4b1bd8a12a1c02295db4f328197ed3b2101c3fd051d424a1
+unsigned-sha256: c2400116119b9e504383a64d756ef51c20066f93dcb3eeea001a4ed6e4107061
 dmg-sha256:      PENDING
 xcode-build:     17C529
 macos-target:    14.0

@@ -24,9 +24,18 @@ if [ -z "$PHASE" ] || [ -z "$VERSION" ]; then
     exit 2
 fi
 TAG="v$VERSION"
+
+# Releases are built at the same fixed path every verifier uses, because the
+# absolute build path is embedded in the binary and is therefore part of the input.
+# Building in the working copy instead — which this script used to do — produced a
+# published hash that no verifier could ever reproduce: CI rebuilt at the canonical
+# path, got different bytes, and reported it as a mismatch. The rule was written
+# into tools/verify-release.sh and the CI workflow and simply never applied to the
+# thing that generates the number.
+CANONICAL=/private/tmp/vesta-verify/Vesta
 # The universal product, not the .build/release symlink — that points at the
 # single-arch directory, so hashing it would record a binary the DMG does not carry.
-BIN=".build/apple/Products/Release/Vesta"
+BIN="$CANONICAL/.build/apple/Products/Release/Vesta"
 
 # The shipped variant. macOS 14 reaches every machine the README claims; the Liquid
 # Glass variant stays a build-from-source option.
@@ -37,12 +46,24 @@ xcode_build() {
         ProductBuildVersion 2>/dev/null || echo unknown
 }
 
+# Copy the tracked tree to the canonical path — exactly what a verifier gets from
+# `git clone`, and nothing else. Working-tree contents, so the freshly stamped
+# Info.plist is included; `git ls-files` rather than a recursive copy, so .build
+# cannot come along and taint the result with artefacts from another path.
+stage_canonical() {
+    rm -rf "$(dirname "$CANONICAL")"
+    mkdir -p "$CANONICAL"
+    git ls-files > /tmp/vesta-release-files.$$
+    tar cf - -T /tmp/vesta-release-files.$$ | (cd "$CANONICAL" && tar xf -)
+    rm -f /tmp/vesta-release-files.$$
+}
+
 build_unsigned() {
     # Deliberately not build.sh: that signs, and the whole point of this phase is to
     # produce the artefact CI can independently reproduce before anyone signs it.
-    swift build -c release --product Vesta --arch arm64 --arch x86_64 \
+    (cd "$CANONICAL" && swift build -c release --product Vesta --arch arm64 --arch x86_64 \
         -Xlinker -sectcreate -Xlinker __TEXT -Xlinker __info_plist \
-        -Xlinker "$PWD/Info.plist"
+        -Xlinker "$CANONICAL/Info.plist")
 }
 
 case "$PHASE" in
@@ -73,7 +94,8 @@ prepare)
     # Monotonic, and needs no stored counter that could be lost.
     /usr/libexec/PlistBuddy -c "Set :CFBundleVersion $(date -u +%Y%m%d%H%M)" Info.plist
 
-    echo "==> building unsigned, universal"
+    echo "==> building unsigned, universal at $CANONICAL"
+    stage_canonical
     build_unsigned
     UNSIGNED_HASH=$(shasum -a 256 "$BIN" | awk '{print $1}')
 
@@ -122,7 +144,8 @@ MANIFEST
 sign)
     [ -f "release/$TAG.txt" ] || { echo "error: run '$0 prepare $VERSION' first." >&2; exit 1; }
 
-    echo "==> rebuilding to confirm the tree still produces the attested binary"
+    echo "==> rebuilding at $CANONICAL to confirm the tree still produces the attested binary"
+    stage_canonical
     build_unsigned
     WANT=$(awk '/^unsigned-sha256:/ {print $2}' "release/$TAG.txt")
     GOT=$(shasum -a 256 "$BIN" | awk '{print $1}')
@@ -148,8 +171,11 @@ sign)
         [ "$ok" = "y" ] || { echo "aborted."; exit 1; }
     fi
 
+    # Sign the attested bytes themselves. Letting build.sh rebuild here would sign a
+    # binary built at this working copy's path, which differs from the one CI
+    # attested — the published hash would describe an artefact nobody downloaded.
     echo "==> signing and notarising"
-    ./build.sh release --release
+    VESTA_PREBUILT_BINARY="$BIN" ./build.sh release --release
     (cd build && rm -f Vesta.zip && zip -qr Vesta.zip Vesta.app)
     xcrun notarytool submit --keychain-profile "vesta-notary" --wait build/Vesta.zip
     xcrun stapler staple build/Vesta.app
