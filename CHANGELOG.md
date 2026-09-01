@@ -6,7 +6,10 @@ versions follow [semantic versioning](https://semver.org).
 Vesta makes no network call to tell you a new version exists — see
 [Updates](README.md#updates) for how to find out.
 
-## [Unreleased]
+## [0.1.0] — 2026-08-31
+
+First release. A menu-bar Hue controller that talks to the bridge on your network
+and to nothing else.
 
 ### Added
 - Universal binary (Apple silicon and Intel) for released builds.
@@ -14,6 +17,11 @@ Vesta makes no network call to tell you a new version exists — see
   unsigned binary with the published hash.
 - `tools/remove-signing-identity.sh`, which removes the trusted code-signing root
   that `make-signing-identity.sh` installs. Nothing removed it before.
+- In-app pairing. Discovery reads the bridge id from the mDNS TXT record and derives
+  the `.local` name, with manual address entry for networks that block mDNS.
+- An About panel carrying the version, the licence and the non-affiliation notice.
+- Signed, notarised disk images, and CI attestation of the unsigned binary's hash
+  through GitHub's transparency log.
 
 ### Changed
 - Licence is now Apache-2.0. Section 6 grants no trademark rights and section 5
