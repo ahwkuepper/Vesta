@@ -1,6 +1,6 @@
 # Vesta Nest website
 
-Public information and privacy policy for the Vesta Nest reader and the Nest integration in Vesta Home. Home controls are distinct from the standalone reader’s read-only behavior. This directory is the source copy; deployment to the separate Pages repository is a separate step.
+Public information and privacy policy for the Vesta Nest reader and the Nest integration in Vesta Home. Home controls are distinct from the standalone reader’s read-only behavior. The main Vesta repository keeps a copy in `nest/site/`; changes there must also be deployed to the Pages repository.
 
 This repository contains only static website files. It contains no OAuth
 credentials, private configuration, thermostat readings, or application history.

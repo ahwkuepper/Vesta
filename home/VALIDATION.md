@@ -27,13 +27,18 @@ The source and automated checks can run without accessing a home or Keychain.
   Pinned Xcode 17C529: 130 tests passed in each UI variant; 19 Nest tests passed.
   Universal optimized build succeeded. The unsigned hash is recorded in
   `release/home-v0.2.0.txt`. A second clean canonical build produced the same hash.
-- Public CI and independent unsigned build attestation: pending public source/tag.
+  Both slices ran sample snapshots (Intel under Rosetta); the setup UI was visually
+  checked. This does not replace a native Intel or fresh-user hardware check.
+- Public CI: both push and PR runs passed for source snapshot `2a805c0`.
+  [Run evidence](https://github.com/ahwkuepper/Vesta/actions/runs/43099477644).
+  Tagged-build attestation remains pending promotion and a public release tag.
   The runner image documents the required Xcode. Current main protection requires
   the `test` CI job; it does not require a human or code-owner approval. A maintainer
   must review the candidate; CODEOWNERS alone does not provide that enforcement.
 - Final public DMG signature, Gatekeeper, contents and checksum: pending.
-- Updated Nest consent-site policy deployed: pending; source changes alone do not
-  update the separate GitHub Pages repository.
+- Updated Nest consent-site policy: prepared in
+  [draft PR #1](https://github.com/ahwkuepper/vesta-nest-site/pull/1).
+  Live deployment awaits explicit owner approval for that separate destination.
 
 ## Required human/hardware check before an installer release
 
