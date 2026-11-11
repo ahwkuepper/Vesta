@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import VestaBridge
 
 /// First-run setup, shown in place of the light list when nothing is paired.

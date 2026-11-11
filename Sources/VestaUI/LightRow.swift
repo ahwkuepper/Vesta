@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import VestaKit
 
 /// One bulb. Collapsed it shows identity, state and brightness — the things you
@@ -34,23 +35,7 @@ struct LightRow: View {
                 if isExpanded { colorControls }
             }
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 10)
-        .background {
-            if isExpanded {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(reduceTransparency
-                          ? AnyShapeStyle(Color(nsColor: .controlBackgroundColor))
-                          : AnyShapeStyle(.primary.opacity(0.035)))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .strokeBorder(.primary.opacity(contrast == .increased ? 0.4 : 0.08),
-                                          lineWidth: 0.5)
-                    }
-            }
-        }
-        .padding(.horizontal, 8)
-        .motion(.snappy(duration: 0.22), value: isExpanded)
+        .deviceRowSurface(expanded: isExpanded)
     }
 
     // MARK: - Header
@@ -100,31 +85,9 @@ struct LightRow: View {
     /// Shows the colour the bulb is actually emitting, so the popover reads as a
     /// picture of the room rather than a list of names.
     private var swatchView: some View {
-        ZStack {
-            Circle()
-                .fill(light.state.isOn && isCommandable
-                      ? Color(swatch)
-                      : Color.secondary.opacity(0.22))
-                .frame(width: 22, height: 22)
-                .overlay {
-                    Circle().strokeBorder(
-                        LinearGradient(colors: [.white.opacity(0.5), .white.opacity(0.05)],
-                                       startPoint: .topLeading, endPoint: .bottomTrailing),
-                        lineWidth: 0.75)
-                }
-                // A lit bulb glows. Cheap, and it makes on/off readable peripherally.
-                .shadow(color: light.state.isOn && isCommandable
-                        ? Color(swatch).opacity(0.55) : .clear,
-                        radius: 4)
-
-            if !isCommandable {
-                Image(systemName: light.connection == .needsPairing
-                      ? "lock.fill" : "antenna.radiowaves.left.and.right.slash")
-                    .font(.controlGlyphBold)
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .motion(.easeOut(duration: 0.25), value: light.state)
+        DeviceSwatch(color: swatch, isOn: light.state.isOn, ready: isCommandable,
+                     needsPairing: light.connection == .needsPairing)
+            .motion(.easeOut(duration: 0.25), value: light.state)
     }
 
     @ViewBuilder

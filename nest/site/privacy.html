@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="How the Vesta Nest reader accesses, uses, stores, and shares Google Nest data and OAuth credentials.">
+  <meta name="color-scheme" content="light dark">
+  <title>Privacy policy — Vesta Nest</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="Vesta Nest home"><span class="mark" aria-hidden="true">V</span> Vesta Nest</a>
+    <nav aria-label="Main navigation"><a href="privacy.html" aria-current="page">Privacy</a><a href="https://github.com/ahwkuepper/vesta-nest-site">GitHub</a></nav>
+  </header>
+  <main id="main" class="wrap policy">
+    <p class="eyebrow">Your data, explained</p>
+    <h1>Privacy policy</h1>
+    <p class="updated">Effective November 11, 2026</p>
+    <p class="lead">Vesta Nest is a personal macOS command-line reader developed by Andreas Kupper. This policy covers the reader, the Nest integration in Vesta Home, and this information website. Vesta Home also controls Hue and Kasa devices; its full <a href="https://github.com/ahwkuepper/Vesta/blob/main/home/PRIVACY.md">privacy policy</a> describes those providers and local preferences.</p>
+
+    <h2>Data the reader accesses</h2>
+    <p>With your authorization, the reader uses Google’s Smart Device Management API to retrieve the devices you have permitted it to access. For thermostats, this can include room or device names, temperature, humidity, heating and cooling setpoints, operating mode, HVAC activity, Eco settings, and connectivity status. Google’s responses may also contain device and structure identifiers; the reader does not include these identifiers in its normal output.</p>
+    <p>The reader uses a Google OAuth client ID and client secret, a Device Access project identifier, a temporary authorization code, an access token, and a refresh token to establish and maintain access. Your Google password is entered on Google’s sign-in page, not into the reader.</p>
+
+    <h2>How the data is used</h2>
+    <p>Thermostat data is used to show readings in the reader or in Vesta Home. Home can send heating/cooling targets, operating mode and Eco commands when you request them. Credentials are used to authenticate requests to Google and renew access. The reader implements read-only device requests; it does not issue thermostat-control commands. Google’s authorization scope permits control; Vesta Home explicitly enables that capability, while the standalone reader remains read-only.</p>
+    <p>Google user data is not used for advertising, sold, or used to train generalized artificial intelligence or machine-learning models. Vesta Nest’s use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services User Data Policy</a>, including its Limited Use requirements.</p>
+
+    <h2>Storage and retention on your Mac</h2>
+    <p>The reader stores its client configuration, client secret, refresh token, any reported token expiration, and pending authorization state in its own macOS Keychain entry. That entry is configured for this device only and does not synchronize through iCloud Keychain. The reader and Home share this entry; deleting it affects both. It remains until you remove it with the reader’s <code>forget</code> command or delete service <code>io.github.ahwkuepper.NestReader.oauth</code>, account <code>google-sdm</code>, in Keychain Access after quitting both apps.</p>
+    <p>Access tokens and fetched readings are processed in memory. The reader does not create a readings database or write tokens to a plaintext file. Terminal output may remain in your terminal’s scrollback, and you can choose to save or share it. Files you create during setup—such as downloaded OAuth credentials and the saved authorization redirect URL—remain on disk until you delete them; the reader does not remove them automatically.</p>
+    <p>Errors use fixed messages rather than logging credentials or raw Google responses. The reader uses transient network sessions without a disk cache or shared cookie store.</p>
+
+    <h2>Sharing and service providers</h2>
+    <p>The reader communicates directly with Google over HTTPS for authentication and device readings, and Vesta Home also sends requested thermostat commands. Google processes those requests under its own <a href="https://policies.google.com/privacy">Privacy Policy</a>. The reader does not send thermostat readings or credentials to the developer, this website, or an analytics service. If you choose to send output to another person or service, that sharing is under your control.</p>
+    <p>This website is hosted by GitHub Pages. It has no sign-in form, advertising, analytics scripts, or application cookies. GitHub may collect technical information such as visitor IP addresses when serving the site, under the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub Privacy Statement</a>. Visiting this website does not grant it access to your Google account or thermostat.</p>
+
+    <h2>Revoke access and delete stored credentials</h2>
+    <p>To revoke Google access, unlink the Vesta Nest project in <a href="https://nestservices.google.com/partnerconnections">Google Nest Partner Connections</a>. To remove the shared local Keychain entry, quit Home and run <code>./nest/reader forget</code> from its project directory, or use Keychain Access as described above. These are separate actions: deleting local credentials does not itself revoke Google’s grant. Delete setup files and any saved readings separately if you want to remove those copies too.</p>
+
+    <h2>Changes and questions</h2>
+    <p>Updates to this policy will be posted here with a revised effective date. For questions, contact the developer through the <a href="https://github.com/ahwkuepper/vesta-nest-site/issues">website’s GitHub issue tracker</a>. Issues are public: do not include credentials, authorization codes, tokens, device identifiers, or private readings.</p>
+  </main>
+  <footer class="wrap site-footer"><p><a href="./">Vesta Nest home</a> · Developed by Andreas Kupper</p><p class="fine">Independent software. Not affiliated with or endorsed by Google.</p></footer>
+</body>
+</html>

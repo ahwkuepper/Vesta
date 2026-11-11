@@ -13,3 +13,12 @@ shots/
 .DS_Store
 xcuserdata/
 *.xcuserdatad
+
+# Python publication-gate cache, never source.
+__pycache__/
+*.pyc
+
+# Downloaded Google setup files must never enter a source snapshot.
+credentials.json
+client_secret_*.json
+nest-authorization.txt

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Vesta Nest is a personal macOS reader for Google Nest thermostat readings, with credentials stored in macOS Keychain.">
+  <meta name="color-scheme" content="light dark">
+  <title>Vesta Nest — Thermostat readings on your Mac</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <header class="site-header wrap">
+    <a class="brand" href="./" aria-label="Vesta Nest home"><span class="mark" aria-hidden="true">V</span> Vesta Nest</a>
+    <nav aria-label="Main navigation"><a href="privacy.html">Privacy</a><a href="https://github.com/ahwkuepper/vesta-nest-site">GitHub</a></nav>
+  </header>
+  <main id="main" class="wrap">
+    <section class="hero" aria-labelledby="headline">
+      <p class="eyebrow">A personal tool for macOS</p>
+      <h1 id="headline">A clear view of<br>your thermostat.</h1>
+      <p class="lead">Vesta Nest reads your Google Nest thermostat’s temperature, humidity, setpoints, and heating or cooling status from your Mac.</p>
+      <p class="intro">It is an independently developed command-line reader for personal use. You authorize your own thermostat through Google, and the reader stores its credentials in macOS Keychain so it can renew access when you request new readings.</p>
+      <a class="button" href="privacy.html">How your data is handled <span aria-hidden="true">↗</span></a>
+    </section>
+    <section class="details" aria-label="How the reader works">
+      <article><p class="number" aria-hidden="true">01</p><h2>Read on demand</h2><p>Request current readings in the terminal, as readable text or JSON. The reader reports connectivity and Eco mode alongside the temperature.</p></article>
+      <article><p class="number" aria-hidden="true">02</p><h2>Connect through Google</h2><p>Thermostat data comes from Google’s Smart Device Management API. Google sign-in lets you choose which supported home and devices to authorize.</p></article>
+      <article><p class="number" aria-hidden="true">03</p><h2>Keep credentials on your Mac</h2><p>The OAuth client secret and refresh token are saved in a dedicated Keychain entry. The reader has no developer-operated backend or analytics service.</p></article>
+    </section>
+    <section class="note" aria-labelledby="access-heading">
+      <h2 id="access-heading">Understand the access you grant</h2>
+      <p>The standalone reader only requests readings. The separate Vesta Home app reuses this Nest integration and can change thermostat setpoints, mode and Eco settings when you request them. Google’s available authorization scope also permits device control, so the saved token must still be protected. You can revoke access in <a href="https://nestservices.google.com/partnerconnections">Google Nest Partner Connections</a>.</p>
+      <p>Vesta Home uses your own Google Device Access project; it does not offer a shared public sign-in service. See the <a href="https://github.com/ahwkuepper/Vesta/blob/main/home/SETUP.md">Home setup guide</a>. This website provides information about both uses of the Nest integration. It does not display your thermostat, collect credentials, or perform Google sign-in.</p>
+    </section>
+  </main>
+  <footer class="wrap site-footer"><p>Vesta Nest · Developed by Andreas Kupper</p><p><a href="privacy.html">Privacy policy</a> · <a href="https://github.com/ahwkuepper/vesta-nest-site/issues">Contact &amp; support</a></p><p class="fine">Independent software. Not affiliated with or endorsed by Google. Google and Nest are trademarks of Google LLC.</p></footer>
+</body>
+</html>

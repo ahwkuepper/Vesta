@@ -15,7 +15,7 @@ import SwiftUI
 /// is clamped at the root rather than left unbounded; see `dynamicTypeClamped()`.
 /// The sizes noted below are what each style measures at the default setting, which
 /// is what the previous literals were.
-extension Font {
+public extension Font {
 
     // MARK: - Header
 
@@ -69,7 +69,7 @@ extension Font {
     static let finePrint = Font.footnote                       // 10
 }
 
-extension View {
+public extension View {
     /// Caps how far text may grow.
     ///
     /// A menu-bar popover cannot get wider, and several names are already limited to
@@ -86,7 +86,7 @@ extension View {
 /// may be made unwell by animation. Reading the environment at each call site meant
 /// every new animation had to remember to ask, and most did not — so the decision
 /// lives here instead.
-extension View {
+public extension View {
     /// An animation that becomes no animation when Reduce Motion is on.
     func motion<V: Equatable>(_ animation: Animation, value: V) -> some View {
         modifier(ReducedMotion(animation: animation, value: value))

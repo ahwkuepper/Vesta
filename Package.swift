@@ -24,6 +24,7 @@ let package = Package(
     targets: [
         // Domain. Knows nothing about any particular protocol, and imports no UI.
         .target(name: "VestaKit"),
+        .target(name: "VestaDesign", dependencies: ["VestaKit"], swiftSettings: glassSettings),
 
         // Transports. Each is the only place its framework may be imported.
         .target(name: "VestaBLE", dependencies: ["VestaKit"]),
@@ -43,12 +44,32 @@ let package = Package(
 
         // The interface, and the offscreen renderer that photographs it.
         .target(name: "VestaUI",
-                dependencies: ["VestaKit", "VestaBLE", "VestaBridge", "VestaDiagnostics"],
+                dependencies: ["VestaKit", "VestaBLE", "VestaBridge", "VestaDiagnostics", "VestaDesign"],
                 swiftSettings: glassSettings),
 
         // Composition root: argument dispatch and nothing else.
         .executableTarget(name: "Vesta", dependencies: ["VestaUI", "VestaCLI"],
                           swiftSettings: glassSettings),
+
+        // A separate menu-bar app for Kasa. It shares Vesta's visual language,
+        // but owns its discovery, account credentials, and device lifecycle.
+        .target(name: "KasaKit"),
+        .target(name: "KasaTransport", dependencies: ["KasaKit"]),
+        .target(name: "KasaUI", dependencies: ["KasaKit", "KasaTransport", "VestaKit", "VestaDesign"],
+                swiftSettings: glassSettings),
+        .executableTarget(name: "VestaKasa", dependencies: ["KasaUI", "KasaTransport"]),
+        .testTarget(name: "KasaTests", dependencies: ["KasaKit", "KasaTransport", "KasaUI", "VestaDesign"]),
+
+        // Interactive layout exploration only: no transports or Keychain access.
+        .target(name: "HomePreviewUI", dependencies: ["VestaDesign", "VestaKit"], swiftSettings: glassSettings),
+        .executableTarget(name: "VestaHomePreview", dependencies: ["HomePreviewUI"]),
+        .testTarget(name: "HomePreviewTests", dependencies: ["HomePreviewUI", "VestaDesign"]),
+
+        // Opt-in combined app. Only this app links the Google cloud integration.
+        .target(name: "NestCore", path: "nest/Sources/NestCore"),
+        .target(name: "HomeUI", dependencies: ["VestaKit", "VestaDesign", "VestaBridge", "VestaUI", "KasaKit", "KasaUI", "NestCore"], swiftSettings: glassSettings),
+        .executableTarget(name: "VestaHome", dependencies: ["HomeUI"]),
+        .testTarget(name: "HomeTests", dependencies: ["HomeUI", "NestCore"]),
 
         .testTarget(name: "VestaKitTests", dependencies: ["VestaKit"]),
         .testTarget(name: "VestaBLETests", dependencies: ["VestaBLE"]),

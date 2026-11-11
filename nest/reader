@@ -1,0 +1,9 @@
+#!/bin/bash
+set -euo pipefail
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+BIN="$ROOT/.build/nest-reader/nest-reader"
+if [ ! -x "$BIN" ]; then
+    echo "Build the signed reader first: ./nest/build.sh" >&2
+    exit 1
+fi
+exec "$BIN" "$@"

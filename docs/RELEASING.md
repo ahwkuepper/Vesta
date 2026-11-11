@@ -1,5 +1,8 @@
 # Releasing
 
+This workflow is for the original Hue-only Vesta. The combined app has a separate
+[Vesta Home release workflow](../home/RELEASING.md) and `home-v*` tags.
+
 One maintainer, one machine, one certificate. This document exists so that is
 recoverable rather than fatal: anyone with their own Developer ID can follow it.
 

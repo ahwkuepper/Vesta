@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import AppKit
 
 /// The app is AppKit-hosted rather than using `MenuBarExtra`.

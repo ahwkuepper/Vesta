@@ -35,6 +35,9 @@ public struct Light: Identifiable, Sendable, Equatable {
 /// What a particular fixture can actually do. Controls are shown only where they
 /// mean something — a gradient strip on a plain bulb would be a lie.
 public struct LightCapabilities: Sendable, Equatable {
+    public var supportsDimming: Bool
+    public var supportsTemperature: Bool
+    public var supportsColor: Bool
     /// Number of colour points a gradient fixture accepts (Play lamps: 5), or nil.
     public var gradientPoints: Int?
     /// Built-in effect names the bridge reports, minus the "off" sentinel.
@@ -42,7 +45,11 @@ public struct LightCapabilities: Sendable, Equatable {
 
     public var supportsGradient: Bool { (gradientPoints ?? 0) > 0 }
 
-    public init(gradientPoints: Int? = nil, effects: [String] = []) {
+    public init(gradientPoints: Int? = nil, effects: [String] = [],
+                supportsDimming: Bool = true, supportsTemperature: Bool = true, supportsColor: Bool = true) {
+        self.supportsDimming = supportsDimming
+        self.supportsTemperature = supportsTemperature
+        self.supportsColor = supportsColor
         self.gradientPoints = gradientPoints
         self.effects = effects
     }

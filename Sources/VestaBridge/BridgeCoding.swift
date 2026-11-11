@@ -63,7 +63,8 @@ public enum BridgeCoding {
                      connection: .ready,
                      capabilities: LightCapabilities(
                         gradientPoints: resource.gradient?.points_capable,
-                        effects: effects))
+                        effects: effects, supportsDimming: resource.dimming != nil,
+                        supportsTemperature: resource.color_temperature != nil, supportsColor: resource.color != nil))
     }
 
     static func state(from resource: LightResource) -> LightState {

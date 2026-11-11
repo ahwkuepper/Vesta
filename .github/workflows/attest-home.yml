@@ -1,0 +1,55 @@
+name: Attest Vesta Home
+
+on:
+  push:
+    tags: ["home-v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  attest:
+    runs-on: macos-15
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Select exact release toolchain
+        run: |
+          WANT=$(cat .xcode-build-version)
+          for APP in /Applications/Xcode*.app; do
+            HAVE=$(/usr/libexec/PlistBuddy -c 'Print :ProductBuildVersion' "$APP/Contents/version.plist" 2>/dev/null || true)
+            if [ "$HAVE" = "$WANT" ]; then
+              echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::Pinned Xcode $WANT is unavailable; cannot attest this release."
+          exit 1
+      - name: Check public source
+        run: |
+          ./tools/check-no-secrets.sh
+          ./tools/check-boundaries.sh
+          python3 -B tools/test_public_tree.py
+      - name: Build at canonical path and compare manifest
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          [[ "$RELEASE_TAG" =~ ^home-v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          CANONICAL=/private/tmp/vesta-home-verify/VestaHome
+          mkdir -p "$CANONICAL"
+          git archive HEAD | tar -x -C "$CANONICAL"
+          cd "$CANONICAL"
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' home/Info.plist)
+          test "$RELEASE_TAG" = "home-v$VERSION"
+          ./tools/build-home-unsigned.sh
+          WANT=$(awk '/^unsigned-sha256:/ {print $2}' "release/$RELEASE_TAG.txt")
+          GOT=$(shasum -a 256 .build/apple/Products/Release/VestaHome | awk '{print $1}')
+          test "$WANT" = "$GOT"
+          test "$(cat .xcode-build-version)" = "$(awk '/^xcode-build:/ {print $2}' "release/$RELEASE_TAG.txt")"
+          cp .build/apple/Products/Release/VestaHome "$GITHUB_WORKSPACE/VestaHome-unsigned"
+      - uses: actions/attest-build-provenance@e8998f949152b193b063cb0ec769d69d929409be # v2.4.0
+        with:
+          subject-path: VestaHome-unsigned

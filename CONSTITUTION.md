@@ -13,6 +13,24 @@ it says so; those gaps are where to spend effort next.
 Vesta talks to devices on the local network and to nothing else. No telemetry, crash
 reporting, update checks, analytics, or remote configuration.
 
+The separately built, opt-in `nest/` command-line companion is an explicit exception:
+the user authorized Google Nest cloud access. It only posts OAuth exchanges to
+`oauth2.googleapis.com` and reads devices from `smartdevicemanagement.googleapis.com`
+over HTTPS port 443. Its consent link opens Google's Nest permissions page in the
+user's browser. Neither Vesta nor Vesta Kasa links this package. The reader's default
+transport rejects thermostat write endpoints; it has no telemetry or background service. Its transport checks
+the HTTP method, host, and path and rejects redirects; tests cover that allowlist.
+
+The user also authorized **Vesta Home**, a separate, opt-in combined application.
+It links the same Nest source with control explicitly enabled. In addition to the
+reader endpoints, it may POST only the five thermostat commands (heat, cool, range,
+mode and Eco) to a device returned by the authorized project's fresh device read.
+The CLI's default client still rejects every command endpoint. Home uses local Hue
+and Kasa transports and each provider's existing scoped Keychain service; it never
+copies credentials to preferences. Its connection screen states that Nest uses
+Google. Home polls Nest once a minute, stops polling after an error until a manual
+retry, and never retries an ambiguous write. No startup action changes device state.
+
 *Enforced by:* `tools/check-boundaries.sh` fails the build if a hard-coded host
 appears in `Sources/`, or if a networking or subprocess API is used outside a
 reviewed transport module. Runs in CI on every push and pull request.
@@ -71,12 +89,15 @@ answers slowly forever cannot hold a request open or exhaust memory.
 
 ## Article 5 — Credentials are scoped and never on disk
 
-Secrets live in the Keychain — never in files, logs or diagnostics. When device
-modules arrive, each gets its own Keychain service and can reach only its own
-credentials.
+Persisted application credentials live in provider-specific Keychain services,
+never preferences, logs or diagnostics. Hue, Kasa and Nest have separate stores;
+their transports receive only their own credentials. Home composes all three.
+This is a source boundary, not isolation from malicious code in the same process.
+User-downloaded OAuth client JSON is a setup input; users must delete or protect
+that file themselves after import. It is never bundled or copied to preferences.
 
-*Enforced by:* review. *Gap:* per-module scoping does not exist yet, because there is
-only one module. It must exist before the second.
+*Enforced by:* transport review and provider store implementations. Cross-process
+Nest authorization must not overlap with the standalone reader's authorization.
 
 ## Article 6 — A diagnostic must be safe to publish
 
@@ -84,10 +105,13 @@ The diagnostics report is designed to be pasted into a public issue. It carries 
 light, room or scene names, no addresses and no coordinates, and identifies keys and
 bridges only by fingerprint.
 
-*Enforced by:* `tools/check-no-secrets.sh` in CI scans every tracked text file —
-including the recorded bridge fixtures — for real addresses, MAC addresses, bridge
-IDs, derived `.local` names and coordinates. A test asserts that fingerprints
-disclose neither the value nor its prefix.
+*Enforced by:* `tools/check-no-secrets.sh` scans tracked and nonignored untracked
+text, including fixtures, for addresses, MACs, bridge IDs, coordinates, private
+keys and common credential formats. It reports locations without matched values.
+Binary assets require reviewed hashes in `tools/public-assets.sha256`. Regression
+tests cover untracked leaks and redaction. This gate does not inspect private Git
+history; publication must use a snapshot without that history. Pattern matching
+cannot establish the absence of every possible secret.
 
 ## Article 7 — The user is told when something fails
 

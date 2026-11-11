@@ -5,7 +5,7 @@ import SwiftUI
 import AppKit
 import VestaKit
 
-extension Color {
+public extension Color {
     init(_ rgb: ColorScience.RGB) {
         self.init(red: rgb.r, green: rgb.g, blue: rgb.b)
     }
@@ -14,7 +14,7 @@ extension Color {
 /// Native macOS slider behavior and handle, with a track that previews the light.
 /// AppKit owns knob drawing, hit testing, tracking, focus and accessibility. In
 /// particular, its resting handle and interaction material follow the current OS.
-struct GradientSlider: NSViewRepresentable {
+public struct GradientSlider: NSViewRepresentable {
     @Binding var value: Double
     var range: ClosedRange<Double> = 0...1
     var gradient: Gradient
@@ -22,9 +22,16 @@ struct GradientSlider: NSViewRepresentable {
     var format: (Double) -> String
     var isEnabled: Bool = true
 
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
+    public init(value: Binding<Double>, range: ClosedRange<Double> = 0...1,
+                gradient: Gradient, label: String, format: @escaping (Double) -> String,
+                isEnabled: Bool = true) {
+        self._value = value; self.range = range; self.gradient = gradient
+        self.label = label; self.format = format; self.isEnabled = isEnabled
+    }
 
-    func makeNSView(context: Context) -> NSSlider {
+    public func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    public func makeNSView(context: Context) -> NSSlider {
         let slider = NativeGradientSlider(frame: .zero)
         slider.cell = GradientSliderCell()
         slider.sliderType = .linear
@@ -38,7 +45,7 @@ struct GradientSlider: NSViewRepresentable {
         return slider
     }
 
-    func updateNSView(_ slider: NSSlider, context: Context) {
+    public func updateNSView(_ slider: NSSlider, context: Context) {
         context.coordinator.parent = self
         slider.minValue = range.lowerBound
         slider.maxValue = range.upperBound
@@ -55,13 +62,13 @@ struct GradientSlider: NSViewRepresentable {
         slider.needsDisplay = true
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSlider,
+    public func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSSlider,
                       context: Context) -> CGSize? {
         CGSize(width: proposal.width ?? 280, height: max(24, nsView.intrinsicContentSize.height))
     }
 
     @MainActor
-    final class Coordinator: NSObject {
+    public final class Coordinator: NSObject {
         var parent: GradientSlider
         init(_ parent: GradientSlider) { self.parent = parent }
 
@@ -120,7 +127,7 @@ private final class GradientSliderCell: NSSliderCell {
     }
 }
 
-extension Gradient {
+public extension Gradient {
     /// Black → the light's own colour, so the track previews the actual result.
     static func brightness(of color: ColorScience.RGB) -> Gradient {
         Gradient(colors: [Color(red: 0.06, green: 0.06, blue: 0.07), Color(color)])

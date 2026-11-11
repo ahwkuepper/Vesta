@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import AppKit
 // @preconcurrency: SCShareableContent carries no Sendable annotation when the
 // deployment target is macOS 14, so returning it to this @MainActor type is an

@@ -127,7 +127,9 @@ struct LightStoreTests {
 
         store.setBrightness(0.1, for: id)
         #expect(await poll { store.lastError != nil })
-        #expect(store.lights[0].state.brightness == original)
+        // Reporting the failure precedes the asynchronous readback. Wait for
+        // reconciliation too; observing the error alone does not mean it finished.
+        #expect(await poll { store.lights[0].state.brightness == original })
     }
 
     @Test("A room switch turns every light in the room off")

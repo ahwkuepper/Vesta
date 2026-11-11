@@ -11,7 +11,7 @@ import SwiftUI
 /// its label. The label already says what the chip does.
 ///
 /// Selection is a filled capsule plus a tick, which survives any appearance.
-extension View {
+public extension View {
 
     func chipStyle(isActive: Bool = false) -> some View {
         modifier(ChipSurface(isActive: isActive))

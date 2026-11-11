@@ -36,7 +36,7 @@ echo "== network access confined to declared transports =="
 # Every outbound call must go through a transport module that has been reviewed for
 # it. A device module quietly opening its own URLSession is exactly how "fully local"
 # stops being true.
-allowed="Sources/VestaBridge/"
+allowed="Sources/(VestaBridge|KasaTransport)/"
 # Comment lines are stripped first: a check that fires on prose gets disabled, and
 # a disabled check protects nothing.
 # Beyond the obvious Foundation and Network types: a raw BSD socket, a shell-out to
@@ -46,7 +46,7 @@ allowed="Sources/VestaBridge/"
 egress="URLSession|NWConnection|NWBrowser|NWListener|CFStream|CFSocket|[^A-Za-z]socket\\(|Process\\(|NSTask|posix_spawn|execv|Data\\(contentsOf:"
 offenders=$(grep -rnE "$egress" Sources/ \
     | without_comments \
-    | cut -d: -f1 | sort -u | grep -v "^$allowed" || true)
+    | cut -d: -f1 | sort -u | grep -vE "^$allowed" || true)
 if [ -n "$offenders" ]; then
     for f in $offenders; do note "network API used outside a transport module: $f"; done
 else
@@ -65,10 +65,22 @@ forbid_import() {  # $1 = target dir, $2 = module it must not import, $3 = why
         layering_ok=0
     fi
 }
-for forbidden in VestaBLE VestaBridge VestaUI VestaCLI VestaDiagnostics AppKit SwiftUI; do
+for forbidden in VestaBLE VestaBridge VestaUI VestaDesign VestaCLI VestaDiagnostics KasaTransport KasaUI AppKit SwiftUI; do
     forbid_import VestaKit "$forbidden" "the domain must stay independent of protocol and interface"
 done
+for forbidden in KasaTransport KasaUI AppKit SwiftUI; do
+    forbid_import KasaKit "$forbidden" "the Kasa domain must stay independent of its transport and interface"
+done
+for forbidden in KasaUI VestaUI VestaCLI; do
+    forbid_import KasaTransport "$forbidden" "a transport must not depend on its callers"
+done
+for forbidden in VestaBLE VestaBridge KasaTransport KasaUI VestaUI VestaCLI; do
+    forbid_import VestaDesign "$forbidden" "shared visual components must not depend on devices or app lifecycle"
+done
 forbid_import VestaCLI VestaUI "the command line must not depend on the interface"
+for forbidden in VestaBridge VestaBLE KasaTransport NestCore; do
+    forbid_import HomePreviewUI "$forbidden" "the layout preview must use sample data only"
+done
 forbid_import VestaDiagnostics VestaUI "the report is shared by the interface and the CLI"
 for forbidden in VestaUI VestaCLI; do
     forbid_import VestaBridge "$forbidden" "a transport must not depend on its callers"
@@ -89,17 +101,17 @@ else
 fi
 
 echo "== no cleartext or third-party hosts =="
-# Two exceptions, enumerated rather than pattern-matched: the About panel hands
+# Browser-link exceptions, enumerated rather than broadly pattern-matched: the UI hands
 # these to the browser on an explicit click. Vesta makes no request, receives no
 # response, and sends nothing — no version, no identifier, no timestamp. Any other
 # host still fails the build.
-ALLOWED_HOSTS='^https://github\.com/ahwkuepper/Vesta$'
+ALLOWED_HOSTS='^https://github\.com/ahwkuepper/Vesta(/blob/main/home/SETUP.md)?$'
 hosts=$(grep -rhoE 'https?://[a-zA-Z0-9./-]+' Sources/ \
         | sed 's|/releases$||' | sort -u | grep -vE "$ALLOWED_HOSTS" || true)
 if [ -n "$hosts" ]; then
     for h in $hosts; do note "hard-coded host: $h"; done
 else
-    echo "  ok — every destination is a device the user paired with"
+    echo "  ok — local transports plus explicit browser documentation links"
 fi
 
 echo "== no force unwrapping of device input =="
@@ -110,6 +122,26 @@ if [ -n "$forced" ]; then
     note "force unwrap in Sources"
 else
     echo "  ok"
+fi
+
+echo "== standalone Nest cloud companion =="
+if [ -d nest/Sources ]; then
+    if grep -qE '\.package\(|binaryTarget' nest/Package.swift || [ -f nest/Package.resolved ]; then
+        note "Nest must use Apple frameworks only"
+    fi
+    if grep -E 'NestCore|NestReader|nest/' Package.swift | grep -vE 'name: "(NestCore|HomeUI|HomeTests)"' | grep -q .; then
+        note "the local-only applications must not link the cloud companion"
+    fi
+    nest_egress=$(grep -rnE "$egress" nest/Sources/ | without_comments \
+        | cut -d: -f1 | sort -u | grep -v '^nest/Sources/NestCore/Transport.swift$' || true)
+    if [ -n "$nest_egress" ]; then note "Nest network APIs used outside Transport.swift: $nest_egress"; fi
+    nest_hosts=$(grep -rhoE 'https?://[a-zA-Z0-9./-]+' nest/Sources/ | sort -u \
+        | grep -vE '^https://(oauth2.googleapis.com/token|smartdevicemanagement.googleapis.com/v1/|smartdevicemanagement.googleapis.com/v1/enterprises/|www.google.com|www.googleapis.com/auth/sdm.service)$' || true)
+    if [ -n "$nest_hosts" ]; then note "unexpected Nest endpoint: $nest_hosts"; fi
+    if grep -rnE 'try!|as! |dlopen|dlsym|NSClassFromString' nest/Sources/ | without_comments | grep -q .; then
+        note "unsafe decoding or runtime loading in Nest"
+    fi
+    echo "  checked — separate package, Google endpoint allowlist, scoped transport"
 fi
 
 echo

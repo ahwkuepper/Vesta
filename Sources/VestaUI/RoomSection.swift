@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import VestaKit
 
 /// One room: a header that controls the whole room, its scenes, and its lights.
