@@ -1,5 +1,12 @@
 # Vesta Home changes
 
+## 0.2.4 — single-device room controls
+
+- Single-device rooms show power only on the device row while expanded, and on
+  the room header while collapsed. Multi-device rooms retain their light group
+  controls. A collapsed single appliance can be controlled directly without
+  adding it to any room-wide or global light group.
+
 ## 0.2.3 — quieter room headers
 
 - Moved per-room priority choices into Home settings → Room priority. Room headers

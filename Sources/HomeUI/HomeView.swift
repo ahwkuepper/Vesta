@@ -121,8 +121,16 @@ struct HomeView: View {
                             }.foregroundStyle(.secondary)
                         }.buttonStyle(.plain).accessibilityLabel("\(model.collapsed.contains(room) ? "Expand" : "Collapse") \(room)")
                         Spacer()
-                        let lights = model.devices.filter { $0.room == room && $0.kind == .light && $0.reachable }
-                        if !lights.isEmpty {
+                        let roomDevices = model.devices.filter { $0.room == room }
+                        let lights = roomDevices.filter { $0.kind == .light && $0.reachable }
+                        if roomDevices.count == 1, let device = roomDevices.first {
+                            // The device row owns power while expanded; keep it available when folded.
+                            if model.collapsed.contains(room) {
+                                Toggle("\(device.name) power", isOn: Binding(get: { device.isOn }, set: { model.power(device, $0) }))
+                                    .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                                    .disabled(!device.reachable || (device.kasaDevice.map { model.kasa.busy.contains($0.id) } ?? false))
+                            }
+                        } else if !lights.isEmpty {
                             Toggle("All lights in \(room)", isOn: Binding(get: { lights.contains { $0.isOn } }, set: { model.allLights($0, room: room) }))
                                 .labelsHidden().toggleStyle(.switch).controlSize(.mini)
                         }
