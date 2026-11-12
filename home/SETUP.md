@@ -26,7 +26,7 @@ been tested and [privacy](PRIVACY.md) for local storage and cloud access.
    firmware is supported. Device errors do not mean a command was safely retried.
 
 Smart room order learns from your controls in Home. Room order updates when you
-reopen the menu. Use a room’s **… → Keep low** for places you rarely need, or choose
+reopen the menu. Use **Home settings → Room priority → [room] → Keep low** for places you rarely need, or choose
 **Background** in a device’s Smart order setting for scheduled decorations. You can
 disable learning or reset it in the Home menu.
 

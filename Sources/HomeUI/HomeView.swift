@@ -24,6 +24,18 @@ struct HomeView: View {
                             Button("Refresh all") { Task { await model.refresh() } }
                             Toggle("Use Celsius", isOn: $model.celsius)
                             Toggle("Smart room order", isOn: $model.smartOrder)
+                            Menu("Room priority") {
+                                ForEach(model.rooms.filter { $0 != "Unassigned" }, id: \.self) { room in
+                                    Menu(room) {
+                                        Picker("Priority", selection: Binding(
+                                            get: { model.roomPriorities[room] ?? .automatic },
+                                            set: { model.setPriority($0, room: room) }
+                                        )) {
+                                            ForEach(RoomPriority.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                                        }
+                                    }
+                                }
+                            }
                             Button("Reset learned order…") { resettingOrder = true }
                             Divider()
                             Button("Quit Vesta Home") { NSApp.terminate(nil) }.keyboardShortcut("q")
@@ -109,15 +121,6 @@ struct HomeView: View {
                             }.foregroundStyle(.secondary)
                         }.buttonStyle(.plain).accessibilityLabel("\(model.collapsed.contains(room) ? "Expand" : "Collapse") \(room)")
                         Spacer()
-                        Menu {
-                            Picker("Room priority", selection: Binding(get: { model.roomPriorities[room] ?? .automatic }, set: { model.setPriority($0, room: room) })) {
-                                ForEach(RoomPriority.allCases, id: \.self) { Text($0.rawValue).tag($0) }
-                            }
-                            Text("Updates next time you open Home.")
-                        } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
-                            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
-                            .accessibilityLabel("Sorting for \(room)")
-                            .help("Keep routine rooms low, or let Home learn from your use.")
                         let lights = model.devices.filter { $0.room == room && $0.kind == .light && $0.reachable }
                         if !lights.isEmpty {
                             Toggle("All lights in \(room)", isOn: Binding(get: { lights.contains { $0.isOn } }, set: { model.allLights($0, room: room) }))

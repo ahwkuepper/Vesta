@@ -1,5 +1,10 @@
 # Vesta Home changes
 
+## 0.2.3 — quieter room headers
+
+- Moved per-room priority choices into Home settings → Room priority. Room headers
+  now contain only expansion and light controls; saved priorities are retained.
+
 ## 0.2.2 — thermostat interaction candidate
 
 - Temperature taps update a local draft, then send one command after an 800 ms pause.

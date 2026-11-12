@@ -6,8 +6,8 @@
 <key>CFBundleIdentifier</key><string>io.github.ahwkuepper.VestaHome</string>
 <key>CFBundleName</key><string>Vesta Home</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.2</string>
-<key>CFBundleVersion</key><string>5</string>
+<key>CFBundleShortVersionString</key><string>0.2.3</string>
+<key>CFBundleVersion</key><string>6</string>
 <key>LSMinimumSystemVersion</key><string>14.0</string>
 <key>LSUIElement</key><true/>
 <key>NSLocalNetworkUsageDescription</key><string>Vesta Home connects to your Hue Bridge and Kasa lights and plugs on your home network.</string>

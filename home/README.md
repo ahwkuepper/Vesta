@@ -46,7 +46,7 @@ Garage/storage rooms start low, and repeated manual use can overcome that initia
 guess. Charger and seasonal-decoration names start as background devices: being on
 does not raise their room. Other lights in the same room still count. These are
 editable initial guesses, not a claim that the app can inspect every vendor's
-schedules. Use the room's **… → Keep low** to keep it below ordinary rooms regardless
+schedules. Use **Home settings → Room priority → [room] → Keep low** to keep it below ordinary rooms regardless
 of activity, or **Normal priority** to override the utility-room guess. In a device's
 controls, **Smart order → Everyday / Background** overrides its name-based guess.
 These sorting choices do not alter device schedules, classification or group actions.

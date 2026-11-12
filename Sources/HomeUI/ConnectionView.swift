@@ -63,7 +63,7 @@ struct ConnectionView: View {
                 section("Rooms", symbol: "rectangle.3.group") {
                     Text("Hue rooms appear automatically. Open any device to assign its room or classify a plug as a light. Assignments apply in Vesta Home.")
                     Toggle("Smart room order", isOn: $model.smartOrder)
-                    Text("Everyday lights that are on come first, then rooms you used recently. Garage and storage rooms start low; repeated manual use can raise them. Each room’s menu lets you choose Keep low. Ordering updates when you reopen Home, so controls stay still while you use them.")
+                    Text("Everyday lights that are on come first, then rooms you used recently. Garage and storage rooms start low; repeated manual use can raise them. Choose Room priority in the Home settings menu to keep a room low. Ordering updates when you reopen Home, so controls stay still while you use them.")
                     Text("Learning uses a small summary of your actions in Home, stored only on this Mac. Timers, polling and All lights actions don’t count. Turning smart order off pauses learning.")
                     HStack {
                         TextField("New room name", text: $model.roomDraft).textFieldStyle(.roundedBorder).onSubmit { model.addRoom() }
