@@ -29,6 +29,33 @@ project. The current personal installer is not a public, CI-attested release.
 - Existing Hue scenes appear within their original room and apply to Hue devices
   only. Kasa schedules expand inside each Kasa device, using the existing scheduler.
 
+## Smart room order
+
+Enabled by default. Rooms with reachable everyday lights on come first, followed
+by the rooms you controlled most recently in Home. Order is fixed while the menu
+is open and refreshed on reopening, so a toggle or slider cannot move under you.
+Newly discovered rooms append until the next opening.
+
+Only deliberate Home controls count: power, dimming, color, effects, a room switch
+or a Hue scene. Polls, schedule changes and global All lights actions do not create
+usage records. The app does not know whether a change from another app was manual.
+Repeated slider events coalesce. A compact per-room last-use/frequency summary
+stays in this Mac's preferences; older habits fade. No cloud AI service is used.
+
+Garage/storage rooms start low, and repeated manual use can overcome that initial
+guess. Charger and seasonal-decoration names start as background devices: being on
+does not raise their room. Other lights in the same room still count. These are
+editable initial guesses, not a claim that the app can inspect every vendor's
+schedules. Use the room's **… → Keep low** to keep it below ordinary rooms regardless
+of activity, or **Normal priority** to override the utility-room guess. In a device's
+controls, **Smart order → Everyday / Background** overrides its name-based guess.
+These sorting choices do not alter device schedules, classification or group actions.
+
+Turn off **Smart room order** for alphabetical order and to pause learning.
+**Reset learned order…** deletes the usage summary while preserving explicit choices.
+Layout export transfers those choices and the sorting toggle, but never usage
+history. Learning remains separate on each Mac.
+
 ## Connections
 
 The app reuses the existing provider-specific Keychain entries. macOS may request

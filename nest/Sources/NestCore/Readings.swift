@@ -70,6 +70,17 @@ public struct Readings: Codable, Sendable {
         return Readings(fetchedAt: fetchedAt, thermostats: thermostats)
     }
 
+    func replacingDevice(_ data: Data, resource: String, fetchedAt: Date) throws -> Self {
+        guard data.count <= 1_048_576,
+              let device = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              device["name"] as? String == resource else { throw ReaderError.malformedResponse }
+        let wrapped = try JSONSerialization.data(withJSONObject: ["devices": [device]])
+        guard let updated = try Self.decode(wrapped, fetchedAt: fetchedAt).thermostats.first else {
+            throw ReaderError.malformedResponse
+        }
+        return Self(fetchedAt: fetchedAt, thermostats: thermostats.map { $0.resource == resource ? updated : $0 })
+    }
+
     private static func safeLabel(_ text: String) -> String {
         String(String.UnicodeScalarView(text.unicodeScalars.filter {
             !CharacterSet.controlCharacters.contains($0) && !CharacterSet.newlines.contains($0)

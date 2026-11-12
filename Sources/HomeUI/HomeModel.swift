@@ -31,6 +31,7 @@ struct HomeDevice: Identifiable {
 struct DevicePlacement: Codable, Equatable {
     var room: String?
     var kind: DeviceKind?
+    var attention: DeviceAttention?
 }
 
 @MainActor @Observable
@@ -41,6 +42,10 @@ final class HomeModel {
     var hueRefreshing = false
     var placements: [String: DevicePlacement] = [:]
     var savedRooms: [String] = []
+    var roomPriorities: [String: RoomPriority] = [:]
+    private(set) var roomUse: [String: RoomUse] = [:]
+    var smartOrder: Bool { didSet { preferences?.set(smartOrder, forKey: "home.smartOrder") } }
+    private var presentedRoomOrder: [String]?
     var search = ""
     var expanded: Set<String> = []
     var collapsed: Set<String> = []
@@ -53,23 +58,40 @@ final class HomeModel {
     var nestError: String?
     var nestBusy = false
     var nestCommandBusy = false
-    var thermostatIndex = 0
+    var thermostatIndex = 0 { didSet { if oldValue != thermostatIndex { cancelTarget() } } }
+    private(set) var targetDraft: ClimateTargetDraft?
+    private(set) var nestRetryAt: Date?
+    @ObservationIgnored private var targetTask: Task<Void, Never>?
+    @ObservationIgnored private var recoveryTask: Task<Void, Never>?
+    @ObservationIgnored private var lastNestReadAttempt: Date?
     var celsius: Bool { didSet { preferences?.set(celsius, forKey: "home.celsius") } }
     var roomDraft = ""
     var localError: String?
     @ObservationIgnored private let preferences: UserDefaults?
+    @ObservationIgnored private let now: () -> Date
     @ObservationIgnored let nest: NestReader
     @ObservationIgnored private var started = false
     @ObservationIgnored private var poll: Task<Void, Never>?
     @ObservationIgnored private var hueTransport: BridgeTransport?
 
     init(preferences: UserDefaults? = .standard, kasa: KasaHome = KasaHome(),
-         nest: NestReader = NestReader(http: GoogleHTTPClient(allowControl: true), allowsControl: true)) {
+         nest: NestReader = NestReader(http: GoogleHTTPClient(allowControl: true), allowsControl: true),
+         now: @escaping () -> Date = Date.init) {
         self.preferences = preferences; self.nest = nest; self.kasa = kasa
+        self.now = now
+        smartOrder = preferences?.object(forKey: "home.smartOrder") as? Bool ?? true
         celsius = preferences?.bool(forKey: "home.celsius") ?? false
         if let data = preferences?.data(forKey: "home.placements.v1"), data.count <= 262144,
            let decoded = try? JSONDecoder().decode([String: DevicePlacement].self, from: data) { placements = decoded }
         savedRooms = Array((preferences?.stringArray(forKey: "home.rooms.v1") ?? []).prefix(100))
+        if let data = preferences?.data(forKey: "home.roomPriorities.v1"), data.count <= 65536,
+           let values = try? JSONDecoder().decode([String: RoomPriority].self, from: data), values.count <= 100 {
+            roomPriorities = values
+        }
+        if let data = preferences?.data(forKey: "home.roomUse.v1"), data.count <= 262144,
+           let values = try? JSONDecoder().decode([String: RoomUse].self, from: data), values.count <= 256 {
+            roomUse = values.filter { $0.key.count <= 160 && $0.value.valid(at: now()) }
+        }
     }
 
     static func inferredKind(name: String, isPlug: Bool) -> DeviceKind {
@@ -130,6 +152,49 @@ final class HomeModel {
             + (names.contains("Unassigned") ? ["Unassigned"] : [])
     }
     var lightsOn: Int { devices.filter { $0.kind == .light && $0.reachable && $0.isOn }.count }
+    private var rankedRooms: [String] {
+        smartOrder ? RoomAttention.sorted(rooms: rooms, devices: devices, placements: placements,
+                                         priorities: roomPriorities, uses: roomUse, at: now()) : rooms
+    }
+    var orderedRooms: [String] {
+        guard let presentedRoomOrder else { return rankedRooms }
+        let current = Set(rooms)
+        return presentedRoomOrder.filter { current.contains($0) } + rankedRooms.filter { !presentedRoomOrder.contains($0) }
+    }
+    func beginPresentation() { presentedRoomOrder = rankedRooms }
+    func endPresentation() { presentedRoomOrder = nil }
+    func reconcilePresentedRooms() {
+        if presentedRoomOrder != nil { presentedRoomOrder = orderedRooms }
+    }
+    func recordRoomUse(_ room: String) {
+        guard smartOrder, room.count <= 160, !room.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { return }
+        reconcilePresentedRooms()
+        let date = now()
+        // Do not encode/write preferences for every slider frame.
+        if let previous = roomUse[room], (0..<5).contains(date.timeIntervalSince(previous.lastUsed)) { return }
+        var value = roomUse[room] ?? RoomUse(lastUsed: date, lastCounted: date, frequency: 1)
+        value.record(at: date); roomUse[room] = value
+        if roomUse.count > 256 {
+            roomUse = Dictionary(uniqueKeysWithValues: roomUse.sorted { $0.value.lastUsed > $1.value.lastUsed }.prefix(256).map { ($0.key, $0.value) })
+        }
+        if let data = try? JSONEncoder().encode(roomUse) { preferences?.set(data, forKey: "home.roomUse.v1") }
+    }
+    func resetLearnedOrder() {
+        reconcilePresentedRooms(); roomUse = [:]; preferences?.removeObject(forKey: "home.roomUse.v1")
+    }
+    func setPriority(_ priority: RoomPriority, room: String) {
+        guard roomPriorities[room] != nil || roomPriorities.count < 100 else { return }
+        roomPriorities[room] = priority == .automatic ? nil : priority
+        savePriorities()
+    }
+    func setAttention(_ attention: DeviceAttention, device: HomeDevice) {
+        var value = placements[device.id] ?? DevicePlacement()
+        value.attention = attention == .automatic ? nil : attention
+        placements[device.id] = value; savePlacements()
+    }
+    private func savePriorities() {
+        if let data = try? JSONEncoder().encode(roomPriorities) { preferences?.set(data, forKey: "home.roomPriorities.v1") }
+    }
     func visible(in room: String) -> [HomeDevice] {
         devices.filter { $0.room == room && (search.isEmpty || $0.name.localizedStandardContains(search) || room.localizedStandardContains(search)) }
     }
@@ -151,39 +216,54 @@ final class HomeModel {
         catch { localError = "Room assignments couldn’t be saved. Try again." }
     }
     func exportLayout() throws -> Data {
-        try HomeLayoutFile(rooms: rooms.filter { $0 != "Unassigned" }, placements: placements, celsius: celsius).encoded()
+        // Include Automatic for known rooms so transferring a reset also clears
+        // a Keep low choice on the receiving Mac. Usage history is never exported.
+        let choices = Dictionary(uniqueKeysWithValues: rooms.filter { $0 != "Unassigned" }.map {
+            ($0, roomPriorities[$0] ?? .automatic)
+        }).merging(roomPriorities) { _, explicit in explicit }
+        return try HomeLayoutFile(rooms: rooms.filter { $0 != "Unassigned" }, placements: placements, celsius: celsius,
+                                  roomPriorities: choices, smartOrder: smartOrder).encoded()
     }
     func importLayout(_ data: Data) throws {
         let incoming = try HomeLayoutFile.decode(data)
         let mergedRooms = Array(Set(savedRooms + incoming.rooms)).sorted()
         let mergedPlacements = placements.merging(incoming.placements) { _, imported in imported }
-        let merged = try HomeLayoutFile(rooms: mergedRooms, placements: mergedPlacements, celsius: incoming.celsius).validated()
+        let priorities = roomPriorities.merging(incoming.roomPriorities ?? [:]) { _, imported in imported }
+        let merged = try HomeLayoutFile(rooms: mergedRooms, placements: mergedPlacements, celsius: incoming.celsius,
+                                        roomPriorities: priorities, smartOrder: incoming.smartOrder ?? smartOrder).validated()
         _ = try merged.encoded() // Validate the complete merge before changing anything.
         placements = merged.placements; savedRooms = merged.rooms; celsius = merged.celsius
+        roomPriorities = priorities; smartOrder = merged.smartOrder ?? smartOrder; savePriorities()
         savePlacements(); preferences?.set(savedRooms, forKey: "home.rooms.v1")
     }
-    func power(_ device: HomeDevice, _ on: Bool) {
+    func power(_ device: HomeDevice, _ on: Bool, recordUse: Bool = true) {
         guard device.reachable else { return }
+        if recordUse { recordRoomUse(device.room) }
         if let light = device.hueLight { hue?.setPower(on, for: light.id) }
         if let kasaDevice = device.kasaDevice { kasa.power(on, device: kasaDevice) }
     }
     func allLights(_ on: Bool, room: String? = nil) {
-        for device in devices where device.kind == .light && (room == nil || device.room == room) { power(device, on) }
+        let targets = devices.filter { $0.kind == .light && $0.reachable && (room == nil || $0.room == room) }
+        if let room, !targets.isEmpty { recordRoomUse(room) }
+        for device in targets { power(device, on, recordUse: false) }
     }
     func brightness(_ device: HomeDevice, _ value: Double) {
         guard device.reachable, device.isOn, device.brightness != nil, value.isFinite else { return }
+        recordRoomUse(device.room)
         let bounded = min(100, max(1, value))
         if let light = device.hueLight { hue?.setBrightness(bounded / 100, for: light.id) }
         if let kasaDevice = device.kasaDevice { kasa.control(.brightness(Int(bounded)), device: kasaDevice) }
     }
     func warmth(_ device: HomeDevice, _ value: Double) {
         guard device.reachable, device.isOn, device.warmth != nil, value.isFinite else { return }
+        recordRoomUse(device.room)
         let bounded = min(6500, max(2500, value))
         if let light = device.hueLight { hue?.setColor(.temperature(mireds: ColorScience.mireds(fromKelvin: bounded)), for: light.id) }
         if let kasaDevice = device.kasaDevice { kasa.control(.temperature(Int(bounded)), device: kasaDevice) }
     }
     func color(_ device: HomeDevice, _ color: NSColor) {
         guard device.reachable, device.isOn, device.supportsColor, let rgb = color.usingColorSpace(.deviceRGB) else { return }
+        recordRoomUse(device.room)
         if let light = device.hueLight {
             let xy = ColorScience.xy(fromRGB: .init(r: rgb.redComponent, g: rgb.greenComponent, b: rgb.blueComponent))
             hue?.setColor(.xy(x: xy.x, y: xy.y), for: light.id)
@@ -248,43 +328,118 @@ final class HomeModel {
 
     var thermostat: Readings.Thermostat? {
         guard let list = nestReadings?.thermostats, !list.isEmpty else { return nil }
-        return list[min(thermostatIndex, list.count - 1)]
+        return list[max(0, min(thermostatIndex, list.count - 1))]
     }
     var climateWritable: Bool {
         thermostat?.connectivity == "ONLINE" && nestError == nil && !nestBusy && !nestCommandBusy
-            && thermostat?.resource != nil
+            && thermostat?.resource != nil && nestRetryAt == nil
     }
     func temperatureLabel(_ value: Double?) -> String {
         guard let value else { return "—" }
         return String(format: celsius ? "%.1f°" : "%.0f°", celsius ? value : value * 9 / 5 + 32)
     }
-    func refreshNest() async {
-        guard !nestBusy, !nestCommandBusy else { return }
+    func refreshNest(force: Bool = false) async {
+        guard !nestBusy, !nestCommandBusy, targetDraft == nil, nestRetryAt == nil else { return }
+        // Repeated Refresh clicks must not consume the entire shared Google quota.
+        if let attempt = lastNestReadAttempt, (0..<15).contains(now().timeIntervalSince(attempt)) { return }
+        if !force, nestError == nil, let date = nestReadings?.fetchedAt,
+           (0..<60).contains(now().timeIntervalSince(date)) { return }
+        lastNestReadAttempt = now()
         nestBusy = true; defer { nestBusy = false }
         do { nestReadings = try await nest.read(); nestError = nil }
-        catch { nestError = error.localizedDescription }
+        catch { await handleNestError(error, changing: false) }
+    }
+    private func handleNestError(_ error: Error, changing: Bool) async {
+        nestError = (changing ? "The thermostat change wasn’t confirmed. " : "") + error.localizedDescription
+        guard error as? ReaderError == .rateLimited else { return }
+        let deadline = await nest.retryNotBefore ?? now().addingTimeInterval(60)
+        nestRetryAt = deadline
+        nestError = "Google is temporarily limiting requests. Readings will refresh after "
+            + deadline.formatted(date: .omitted, time: .shortened)
+            + (changing ? ". Your change wasn’t confirmed; it won’t be resent automatically." : ".")
+        recoveryTask?.cancel()
+        let delay = max(1, deadline.timeIntervalSince(now()))
+        recoveryTask = Task { [weak self] in
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
+            guard let self else { return }
+            self.nestRetryAt = nil
+            await self.refreshNest(force: true)
+        }
     }
     func nestCommand(_ command: NestCommand) {
-        guard climateWritable, let resource = thermostat?.resource else { return }
+        guard climateWritable else { return }
+        cancelTarget()
+        performNestCommand(command)
+    }
+    private func performNestCommand(_ command: NestCommand) {
+        guard climateWritable, let resource = thermostat?.resource else { cancelTarget(); return }
         nestCommandBusy = true
         Task {
-            defer { nestCommandBusy = false }
+            defer { nestCommandBusy = false; targetDraft = nil }
             do { nestReadings = try await nest.execute(command, resource: resource); nestError = nil }
             catch {
-                nestError = "The thermostat change wasn’t confirmed. " + error.localizedDescription
-                // Read back once. Never replay a potentially successful mutation.
-                if let readback = try? await nest.read() { nestReadings = readback }
+                // A failed/ambiguous write is never replayed or followed by another quota-consuming read.
+                await handleNestError(error, changing: true)
             }
         }
     }
-    func stepTarget(_ delta: Double, cooling: Bool = false) {
-        guard let t = thermostat, t.eco == "OFF" else { return }
-        let step = celsius ? 0.5 : 5.0 / 9.0
-        if t.mode == "HEAT", let heat = t.heatCelsius { nestCommand(.heat(min(32, max(10, heat + delta * step)))) }
-        if t.mode == "COOL", let cool = t.coolCelsius { nestCommand(.cool(min(32, max(10, cool + delta * step)))) }
-        if t.mode == "HEATCOOL", let heat = t.heatCelsius, let cool = t.coolCelsius {
-            nestCommand(.range(heat: cooling ? heat : min(cool - 0.5, max(10, heat + delta * step)),
-                               cool: cooling ? max(heat + 0.5, min(32, cool + delta * step)) : cool))
+    func cancelTarget() {
+        targetTask?.cancel(); targetTask = nil; targetDraft = nil
+    }
+    func targetTemperature(cooling: Bool) -> Double? {
+        if let targetDraft, targetDraft.resource == thermostat?.resource {
+            return cooling ? targetDraft.cool : targetDraft.heat
         }
+        return cooling ? thermostat?.coolCelsius : thermostat?.heatCelsius
+    }
+    func stepTarget(_ delta: Double, cooling: Bool = false) {
+        guard climateWritable, delta.isFinite, let t = thermostat, t.eco == "OFF",
+              let resource = t.resource, let mode = t.mode else { return }
+        var draft = targetDraft ?? ClimateTargetDraft(resource: resource, mode: mode,
+                                                      heat: t.heatCelsius, cool: t.coolCelsius)
+        guard draft.resource == resource, draft.mode == mode else { cancelTarget(); return }
+        let step = delta * (celsius ? 0.5 : 5.0 / 9.0)
+        if mode == "HEAT", let heat = draft.heat { draft.heat = min(32, max(10, heat + step)) }
+        else if mode == "COOL", let cool = draft.cool { draft.cool = min(32, max(10, cool + step)) }
+        else if mode == "HEATCOOL", let heat = draft.heat, let cool = draft.cool {
+            if cooling { draft.cool = min(32, max(heat + 0.5, cool + step)) }
+            else { draft.heat = max(10, min(cool - 0.5, heat + step)) }
+        } else { return }
+        cancelTarget()
+        // Returning to the confirmed target cancels the whole burst, including rounding noise.
+        guard !draft.matches(t) else { return }
+        targetDraft = draft
+        targetTask = Task { [weak self] in
+            do { try await Task.sleep(for: .milliseconds(800)) } catch { return }
+            guard !Task.isCancelled else { return }
+            self?.commitTarget()
+        }
+    }
+    func commitTarget() {
+        targetTask?.cancel(); targetTask = nil
+        guard let draft = targetDraft, let t = thermostat, t.resource == draft.resource,
+              t.mode == draft.mode, t.eco == "OFF", let command = draft.command else { cancelTarget(); return }
+        performNestCommand(command)
+    }
+}
+
+struct ClimateTargetDraft {
+    let resource: String
+    let mode: String
+    var heat: Double?
+    var cool: Double?
+    var command: NestCommand? {
+        if mode == "HEAT", let heat { return .heat(heat) }
+        if mode == "COOL", let cool { return .cool(cool) }
+        if mode == "HEATCOOL", let heat, let cool { return .range(heat: heat, cool: cool) }
+        return nil
+    }
+    func matches(_ t: Readings.Thermostat) -> Bool {
+        func equal(_ a: Double?, _ b: Double?) -> Bool {
+            if a == nil && b == nil { return true }
+            guard let a, let b else { return false }
+            return abs(a - b) < 0.000001
+        }
+        return equal(heat, t.heatCelsius) && equal(cool, t.coolCelsius)
     }
 }

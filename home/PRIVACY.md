@@ -33,7 +33,13 @@ included in installers or layout exports. Home reuses the original Vesta, Vesta 
 and Nest reader entries when permitted by macOS; changing or deleting a shared
 entry can affect those apps. Nest credentials do not sync through iCloud Keychain.
 
-Home's preferences retain room assignments, plug classifications and units. Kasa
+Home's preferences retain room assignments, plug classifications, sorting choices
+and units. When Smart room order is enabled, Home also keeps a compact per-room
+last-use timestamp and decaying frequency summary of deliberate controls in Home.
+It does not keep a chronological event log or send this summary to a server or AI
+service. Polls, schedules and global light actions do not count as manual use.
+Disable Smart room order to pause learning; Reset learned order deletes the summary.
+Explicit sorting preferences can be exported with a layout; usage history cannot. Kasa
 also caches device names, identifiers, local addresses, capabilities and last-known
 state to show devices during discovery. Nest access tokens and readings are held
 in memory, not a readings database. Diagnostic messages are intended to omit

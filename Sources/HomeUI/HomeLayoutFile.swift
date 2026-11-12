@@ -9,6 +9,8 @@ struct HomeLayoutFile: Codable, Equatable {
     var rooms: [String]
     var placements: [String: DevicePlacement]
     var celsius: Bool
+    var roomPriorities: [String: RoomPriority]? = nil
+    var smartOrder: Bool? = nil
     static let byteLimit = 262_144
 
     func validated() throws -> Self {
@@ -17,6 +19,7 @@ struct HomeLayoutFile: Codable, Equatable {
                 && !value.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }
         }
         guard format == "vesta-home-layout", version == 1, rooms.count <= 100,
+              (roomPriorities?.count ?? 0) <= 100, roomPriorities?.keys.allSatisfy(label) ?? true,
               placements.count <= 1024, rooms.allSatisfy(label), placements.allSatisfy({ id, placement in
                   (id.hasPrefix("hue:") || id.hasPrefix("kasa:")) && id.count <= 400
                     && !id.unicodeScalars.contains { CharacterSet.controlCharacters.contains($0) }

@@ -15,8 +15,12 @@ public enum HomeSnapshot {
         let room = Room(id: UUID(), name: "Living room", lightIDs: [lamp.id])
         model.hue = LightStore(transport: SimulatedTransport(), initialLights: [lamp], initialRooms: [room])
         for device in model.devices where device.provider == .kasa {
-            model.assign(device, room: device.name.contains("Porch") ? "Porch" : "Living room")
+            let room = device.name == "Charger" ? "Garage" : device.name == "Reading lamp" ? "Office"
+                : device.name.contains("Porch") ? "Porch" : "Living room"
+            model.assign(device, room: room)
+            if device.name == "String lights" { model.setAttention(.background, device: device) }
         }
+        model.recordRoomUse("Office")
         let data = Data(#"{"devices":[{"type":"sdm.devices.types.THERMOSTAT","parentRelations":[{"displayName":"Hallway"}],"traits":{"sdm.devices.traits.Temperature":{"ambientTemperatureCelsius":21.5},"sdm.devices.traits.Humidity":{"ambientHumidityPercent":56},"sdm.devices.traits.Connectivity":{"status":"ONLINE"},"sdm.devices.traits.ThermostatMode":{"mode":"HEAT","availableModes":["HEAT","OFF"]},"sdm.devices.traits.ThermostatHvac":{"status":"OFF"},"sdm.devices.traits.ThermostatEco":{"mode":"OFF"},"sdm.devices.traits.ThermostatTemperatureSetpoint":{"heatCelsius":20}}}]}"#.utf8)
         model.nestReadings = try Readings.decode(data, fetchedAt: Date())
         for dark in [false, true] {

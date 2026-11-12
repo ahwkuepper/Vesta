@@ -33,6 +33,7 @@ import VestaDesign
     }
     func show() {
         guard !popover.isShown, let button = item.button else { return }
+        model.beginPresentation()
         measure()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         NSApp.activate(ignoringOtherApps: true)
@@ -58,6 +59,7 @@ import VestaDesign
     }
     private func close() { if popover.isShown { popover.performClose(nil) } }
     func popoverDidClose(_ notification: Notification) {
+        model.endPresentation()
         closedAt = .now
         if let outside { NSEvent.removeMonitor(outside); self.outside = nil }
         if let resigned { NotificationCenter.default.removeObserver(resigned); self.resigned = nil }

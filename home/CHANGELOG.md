@@ -1,6 +1,27 @@
 # Vesta Home changes
 
-## 0.2.0 — public beta candidate
+## 0.2.2 — thermostat interaction candidate
+
+- Temperature taps update a local draft, then send one command after an 800 ms pause.
+  Returning to the original target cancels the change; changing thermostat or mode
+  cancels the previous draft. Heating/cooling ranges retain their required gap.
+- Reopening the menu reuses readings for 60 seconds. Command readback fetches only
+  the changed device, reducing full device-list requests.
+- Google rate limits pause requests for at least a minute, honoring Retry-After.
+  Recovery refreshes readings only; unconfirmed commands are never replayed.
+
+## 0.2.1 — adaptive sorting candidate
+
+- Smart room order puts everyday lights that are on first, then recently used rooms.
+  Deliberate controls in Home update a small local usage summary; automatic changes
+  and global light actions do not train the order.
+- Garage/storage rooms start low. Charger and seasonal-decoration names start as
+  background devices; their on state does not dominate room order. Explicit room
+  and device preferences override these editable guesses.
+- Order stays stable while the menu is open. Smart sorting can be disabled and its
+  learned summary reset. Layout export transfers choices but excludes usage history.
+
+## 0.2.0 — initial combined-app candidate
 
 - Hue and Kasa lights and lamp plugs appear together by room. Other plugs remain
   separate appliances; group light actions exclude them.

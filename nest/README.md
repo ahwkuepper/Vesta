@@ -86,7 +86,8 @@ Security-relevant change: constitution Articles 1, 4, 5, 6, and 7.
   no iCloud Keychain sync. The reader never accesses Hue or Kasa entries.
 - Only HTTPS port 443, system certificate validation. POST to
   `oauth2.googleapis.com/token`, GET to
-  `smartdevicemanagement.googleapis.com/v1/enterprises/{UUID}/devices`.
+  `smartdevicemanagement.googleapis.com/v1/enterprises/{UUID}/devices` and its
+  individual-device paths. Home uses an individual-device read after a command.
   The public consent URL goes to `nestservices.google.com`. Imported credential
   files cannot override these endpoints. All HTTP redirects are refused.
 - Read-only **implementation**, not a read-only OAuth grant: Google's `sdm.service`

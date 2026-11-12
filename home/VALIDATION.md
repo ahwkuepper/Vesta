@@ -1,7 +1,7 @@
 # Vesta Home beta validation
 
 Status: **candidate preparation; public installer release is not approved yet**.
-Updated November 11, 2026. Keep pending checks visible in a public source preview.
+Updated November 12, 2026. Keep pending checks visible in a public source preview.
 Do not describe a local build as CI-attested or a simulated test as hardware-tested.
 
 ## Recorded baseline
@@ -15,7 +15,25 @@ Its baseline tests passed: 130 tests in the Liquid Glass build, 130 in the class
 build, and 19 standalone Nest tests. This record does not establish fresh-install
 behavior or live device command compatibility for the public candidate.
 
-## Candidate checks
+## Personal update candidates (0.2.1 / 0.2.2)
+
+The adaptive sorting candidate 0.2.1 passed 139 tests in each UI variant and 19
+standalone Nest tests, plus universal build, signing, notarization, stapling and
+Gatekeeper assessment. It was not installed; the requested thermostat UX fix is
+included in 0.2.2 before updating the personal app.
+
+0.2.2 adds debounced setpoints, fewer device-list reads and rate-limit backoff.
+All 144 application tests passed in both Liquid Glass and classic variants; all
+22 standalone Nest tests passed. Synthetic interaction and transport tests cover
+final-target coalescing, cancelled changes, heat/cool range bounds, quota errors
+and no write replay. No live thermostat writes were performed by these tests.
+The universal personal app and DMG passed signing, notarization, stapling and
+Gatekeeper assessment. Version 0.2.2 was installed and launched on the development
+Mac with the previous app retained as a backup. The public source PR remains draft, with
+an updated canonical unsigned manifest and tagged CI attestation still required
+before any public installer release.
+
+## Combined-app baseline checks (0.2.0)
 
 Results from the publication-preparation pass are recorded below when completed.
 The source and automated checks can run without accessing a home or Keychain.
@@ -26,7 +44,7 @@ The source and automated checks can run without accessing a home or Keychain.
 - Clean snapshot: created as a new root commit without private ancestry.
   Pinned Xcode 17C529: 130 tests passed in each UI variant; 19 Nest tests passed.
   Universal optimized build succeeded. The unsigned hash is recorded in
-  `release/home-v0.2.0.txt`. A second clean canonical build produced the same hash.
+  [the baseline manifest](https://github.com/ahwkuepper/Vesta/blob/2a805c0c636b620dbb1face023fbe671cca00f13/release/home-v0.2.0.txt). A second clean canonical build produced the same hash.
   Both slices ran sample snapshots (Intel under Rosetta); the setup UI was visually
   checked. This does not replace a native Intel or fresh-user hardware check.
 - Public CI: both push and PR runs passed for source snapshot `2a805c0`.

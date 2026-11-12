@@ -3,7 +3,10 @@ import Foundation
 public struct HTTPResponse: Sendable {
     public let status: Int
     public let body: Data
-    public init(status: Int, body: Data) { self.status = status; self.body = body }
+    public let retryAfter: TimeInterval?
+    public init(status: Int, body: Data, retryAfter: TimeInterval? = nil) {
+        self.status = status; self.body = body; self.retryAfter = retryAfter
+    }
 }
 
 public protocol HTTPClient: Sendable {
@@ -32,8 +35,19 @@ public struct GoogleHTTPClient: HTTPClient {
         }
         guard request.httpMethod == "GET", url.host == "smartdevicemanagement.googleapis.com" else { return false }
         let parts = url.path.split(separator: "/")
-        return parts.count == 4 && parts[0] == "v1" && parts[1] == "enterprises"
-            && UUID(uuidString: String(parts[2])) != nil && parts[3] == "devices"
+        guard parts.count == 4 || parts.count == 5, parts[0] == "v1", parts[1] == "enterprises",
+              UUID(uuidString: String(parts[2])) != nil, parts[3] == "devices" else { return false }
+        return parts.count == 4 || NestCommand.validResource(parts.dropFirst().joined(separator: "/"), project: String(parts[2]))
+    }
+
+    static func retryDelay(_ header: String?, now: Date = Date()) -> TimeInterval? {
+        guard let header else { return nil }
+        if let seconds = Double(header), seconds.isFinite, seconds >= 0 { return seconds }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        return formatter.date(from: header).map { max(0, $0.timeIntervalSince(now)) }
     }
 
     public func send(_ request: URLRequest) async throws -> HTTPResponse {
@@ -56,7 +70,8 @@ public struct GoogleHTTPClient: HTTPClient {
                 guard data.count < 1_048_576 else { throw ReaderError.responseTooLarge }
                 data.append(byte)
             }
-            return HTTPResponse(status: http.statusCode, body: data)
+            return HTTPResponse(status: http.statusCode, body: data,
+                                retryAfter: Self.retryDelay(http.value(forHTTPHeaderField: "Retry-After")))
         } catch let error as ReaderError { throw error }
         catch { throw ReaderError.network }
     }

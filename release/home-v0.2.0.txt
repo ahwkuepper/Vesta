@@ -1,8 +1,0 @@
-# Vesta Home public beta; unsigned binary built at the canonical path.
-# The public tag identifies the source. Signed DMG checksums ship as sidecars.
-version: 0.2.0
-product: VestaHome
-unsigned-sha256: 9431ffc5ce549d1b65d0642f74410a7745b73200b300d555a26785c10a244a1c
-xcode-build: 17C529
-macos-target: 14.0
-architectures: arm64 x86_64

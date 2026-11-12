@@ -46,8 +46,8 @@ struct ConnectionView: View {
                     }
                     if let error = model.nestError { Text(error).foregroundStyle(.orange) }
                     HStack {
-                        Button("Refresh") { Task { await model.refreshNest() } }.disabled(model.nestBusy || model.nestCommandBusy || authorizing)
-                        Button("Authorize…", action: authorize).disabled(model.nestBusy || model.nestCommandBusy || authorizing)
+                        Button("Refresh") { Task { await model.refreshNest(force: true) } }.disabled(model.nestBusy || model.nestCommandBusy || model.targetDraft != nil || model.nestRetryAt != nil || authorizing)
+                        Button("Authorize…", action: authorize).disabled(model.nestBusy || model.nestCommandBusy || model.targetDraft != nil || model.nestRetryAt != nil || authorizing)
                     }
                     if waitingForRedirect {
                         Text("After approving access in Google, paste the complete returned Google URL here.")
@@ -62,6 +62,9 @@ struct ConnectionView: View {
                 }
                 section("Rooms", symbol: "rectangle.3.group") {
                     Text("Hue rooms appear automatically. Open any device to assign its room or classify a plug as a light. Assignments apply in Vesta Home.")
+                    Toggle("Smart room order", isOn: $model.smartOrder)
+                    Text("Everyday lights that are on come first, then rooms you used recently. Garage and storage rooms start low; repeated manual use can raise them. Each room’s menu lets you choose Keep low. Ordering updates when you reopen Home, so controls stay still while you use them.")
+                    Text("Learning uses a small summary of your actions in Home, stored only on this Mac. Timers, polling and All lights actions don’t count. Turning smart order off pauses learning.")
                     HStack {
                         TextField("New room name", text: $model.roomDraft).textFieldStyle(.roundedBorder).onSubmit { model.addRoom() }
                         Button("Add") { model.addRoom() }.disabled(model.roomDraft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)

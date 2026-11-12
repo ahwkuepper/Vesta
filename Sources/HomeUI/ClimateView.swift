@@ -29,6 +29,7 @@ struct ClimateSummary: View {
     }
     private var status: String {
         if model.nestCommandBusy { return "Updating…" }
+        if model.targetDraft != nil { return "Choosing temperature…" }
         if model.nestError != nil { return model.thermostat == nil ? "Connect Nest" : "Last reading" }
         guard let t = model.thermostat else { return model.nestBusy ? "Connecting…" : "Not connected" }
         if t.connectivity != "ONLINE" { return "Offline · last reading" }
@@ -47,7 +48,7 @@ private struct TargetControl: View {
             HStack(spacing: 5) {
                 Button { model.stepTarget(-1, cooling: cooling) } label: { Image(systemName: "minus").frame(width: 20, height: 22) }
                     .accessibilityLabel("Decrease \(cooling ? "cooling" : "heating") target")
-                Text(model.temperatureLabel(cooling ? model.thermostat?.coolCelsius : model.thermostat?.heatCelsius))
+                Text(model.temperatureLabel(model.targetTemperature(cooling: cooling)))
                     .font(.headline).monospacedDigit().frame(minWidth: 27)
                 Button { model.stepTarget(1, cooling: cooling) } label: { Image(systemName: "plus").frame(width: 20, height: 22) }
                     .accessibilityLabel("Increase \(cooling ? "cooling" : "heating") target")
@@ -63,7 +64,7 @@ struct ClimateDetails: View {
             if let error = model.nestError {
                 Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Nest connection…") { model.settings = true }
+                if model.nestRetryAt == nil { Button("Nest connection…") { model.settings = true } }
             }
             if let t = model.thermostat {
                 if let readings = model.nestReadings, readings.thermostats.count > 1 {
@@ -95,10 +96,10 @@ struct ClimateDetails: View {
                     Text("From Google \(fetched.formatted(date: .omitted, time: .shortened))").font(.caption2).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button { Task { await model.refreshNest() } } label: { Image(systemName: "arrow.clockwise") }
-                    .buttonStyle(.borderless).disabled(model.nestBusy || model.nestCommandBusy).accessibilityLabel("Refresh thermostat")
+                Button { Task { await model.refreshNest(force: true) } } label: { Image(systemName: "arrow.clockwise") }
+                    .buttonStyle(.borderless).disabled(model.nestBusy || model.nestCommandBusy || model.targetDraft != nil || model.nestRetryAt != nil).accessibilityLabel("Refresh thermostat")
             }
-            Text("Changes apply to your thermostat. Updates can take a moment.").font(.caption2).foregroundStyle(.secondary)
+            Text("Temperature changes send after you pause briefly. Updates can take a moment.").font(.caption2).foregroundStyle(.secondary)
         }.padding(16).background(.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 12))
             .padding(.horizontal, 12).padding(.top, 10)
     }

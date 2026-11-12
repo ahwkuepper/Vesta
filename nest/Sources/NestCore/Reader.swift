@@ -6,6 +6,8 @@ public actor NestReader {
     private let http: any HTTPClient
     private let now: @Sendable () -> Date
     private let allowsControl: Bool
+    public private(set) var retryNotBefore: Date?
+    private var rateLimitDelay: TimeInterval = 30
     public init(store: any CredentialStore = KeychainStore(), http: any HTTPClient = GoogleHTTPClient(),
                 now: @escaping @Sendable () -> Date = { Date() }, allowsControl: Bool = false) {
         self.store = store; self.http = http; self.now = now
@@ -103,8 +105,16 @@ public actor NestReader {
         request.httpMethod = "POST"; request.httpBody = body
         request.setValue("Bearer " + access, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        try Self.validate(try await http.send(request))
-        return try await readings(c, access: access)
+        _ = try await sendValidated(request)
+        // Read only the changed device: avoid spending another devices.list quota.
+        guard let readbackURL = URL(string: "https://smartdevicemanagement.googleapis.com/v1/" + resource) else {
+            throw ReaderError.invalidConfiguration
+        }
+        request = URLRequest(url: readbackURL)
+        request.httpMethod = "GET"
+        request.setValue("Bearer " + access, forHTTPHeaderField: "Authorization")
+        let response = try await sendValidated(request)
+        return try current.replacingDevice(response.body, resource: resource, fetchedAt: now())
     }
 
     private func refreshed() async throws -> (Credentials, String) {
@@ -165,8 +175,7 @@ public actor NestReader {
             let encoded = value.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
             return "\(key)=\(encoded)"
         }.joined(separator: "&").utf8)
-        let response = try await http.send(request)
-        try Self.validate(response)
+        let response = try await sendValidated(request)
         guard let tokens = try? JSONDecoder().decode(Tokens.self, from: response.body),
               !tokens.access_token.isEmpty, tokens.access_token.utf8.count <= 16_384,
               !tokens.access_token.contains(where: { $0.isWhitespace }),
@@ -186,9 +195,25 @@ public actor NestReader {
         request.httpMethod = "GET"
         request.setValue("Bearer " + access, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        let response = try await http.send(request)
-        try Self.validate(response)
+        let response = try await sendValidated(request)
         return try Readings.decode(response.body, fetchedAt: now())
+    }
+
+    private func sendValidated(_ request: URLRequest) async throws -> HTTPResponse {
+        if let retryNotBefore, now() < retryNotBefore { throw ReaderError.rateLimited }
+        let response = try await http.send(request)
+        if response.status == 429 {
+            // No automatic mutation replay. Back off even when Google omits Retry-After.
+            rateLimitDelay = min(900, max(60, rateLimitDelay * 2))
+            let supplied = response.retryAfter.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil } ?? 0
+            retryNotBefore = now().addingTimeInterval(max(rateLimitDelay, min(86400, supplied)))
+        }
+        try Self.validate(response)
+        // Token refresh success must not erase a preceding device quota backoff.
+        if request.url?.host == "smartdevicemanagement.googleapis.com" {
+            rateLimitDelay = 30; retryNotBefore = nil
+        }
+        return response
     }
 
     static func validate(_ response: HTTPResponse) throws {

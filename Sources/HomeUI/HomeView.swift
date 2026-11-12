@@ -7,6 +7,7 @@ import VestaUI
 struct HomeView: View {
     @Bindable var model: HomeModel
     var maximumHeight: CGFloat = 700
+    @State private var resettingOrder = false
     var body: some View {
         PopoverPage(maximumHeight: maximumHeight) {
             VStack(spacing: 0) {
@@ -22,6 +23,8 @@ struct HomeView: View {
                             Button("Connections & rooms…") { model.settings = true }
                             Button("Refresh all") { Task { await model.refresh() } }
                             Toggle("Use Celsius", isOn: $model.celsius)
+                            Toggle("Smart room order", isOn: $model.smartOrder)
+                            Button("Reset learned order…") { resettingOrder = true }
                             Divider()
                             Button("Quit Vesta Home") { NSApp.terminate(nil) }.keyboardShortcut("q")
                         } label: { Image(systemName: "ellipsis.circle") }
@@ -44,6 +47,12 @@ struct HomeView: View {
         }
         .frame(width: MenuMetrics.width).dynamicTypeClamped()
         .transaction { $0.animation = nil; $0.disablesAnimations = true }
+        .onChange(of: model.rooms) { model.reconcilePresentedRooms() }
+        .confirmationDialog("Reset learned room order?", isPresented: $resettingOrder) {
+            Button("Reset learned order", role: .destructive) { model.resetLearnedOrder() }
+        } message: {
+            Text("Clears this Mac’s usage summary. Your room and device preferences stay. The order updates next time you open Home.")
+        }
     }
 
     private var notices: some View {
@@ -86,7 +95,7 @@ struct HomeView: View {
             } else if !model.rooms.contains(where: { !model.visible(in: $0).isEmpty }) {
                 Text("No matching devices").foregroundStyle(.secondary).padding(24)
             }
-            ForEach(model.rooms, id: \.self) { room in
+            ForEach(model.orderedRooms, id: \.self) { room in
                 let devices = model.visible(in: room)
                 if !devices.isEmpty {
                     HStack(spacing: 7) {
@@ -95,11 +104,20 @@ struct HomeView: View {
                         } label: {
                             HStack(spacing: 7) {
                                 Image(systemName: roomSymbol(room)).frame(width: 17)
-                                Text(room).font(.roomName)
+                                Text(room).font(.roomName).lineLimit(1)
                                 Image(systemName: model.collapsed.contains(room) ? "chevron.right" : "chevron.down").font(.caption2)
                             }.foregroundStyle(.secondary)
                         }.buttonStyle(.plain).accessibilityLabel("\(model.collapsed.contains(room) ? "Expand" : "Collapse") \(room)")
                         Spacer()
+                        Menu {
+                            Picker("Room priority", selection: Binding(get: { model.roomPriorities[room] ?? .automatic }, set: { model.setPriority($0, room: room) })) {
+                                ForEach(RoomPriority.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                            }
+                            Text("Updates next time you open Home.")
+                        } label: { Image(systemName: "ellipsis.circle").foregroundStyle(.secondary) }
+                            .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+                            .accessibilityLabel("Sorting for \(room)")
+                            .help("Keep routine rooms low, or let Home learn from your use.")
                         let lights = model.devices.filter { $0.room == room && $0.kind == .light && $0.reachable }
                         if !lights.isEmpty {
                             Toggle("All lights in \(room)", isOn: Binding(get: { lights.contains { $0.isOn } }, set: { model.allLights($0, room: room) }))
@@ -126,7 +144,7 @@ struct HomeView: View {
             ScrollView(.horizontal) {
                 HStack(spacing: 6) {
                     ForEach(hue.scenes(in: hueRoom)) { scene in
-                        Button { hue.recall(scene) } label: { Text(scene.name).chipMetrics().chipStyle(isActive: scene.isActive) }
+                        Button { model.recordRoomUse(room); hue.recall(scene) } label: { Text(scene.name).chipMetrics().chipStyle(isActive: scene.isActive) }
                             .buttonStyle(.plain).help("Hue scene: \(scene.name)")
                     }
                 }.chipGroup().padding(.horizontal, 18)
@@ -200,7 +218,7 @@ private struct HomeDeviceRow: View {
                 }.font(.callout)
             }
             if let light = device.hueLight, !light.capabilities.effects.isEmpty {
-                Picker("Effect", selection: Binding(get: { light.state.effect ?? "" }, set: { model.hue?.setEffect($0.isEmpty ? nil : $0, for: light.id) })) {
+                Picker("Effect", selection: Binding(get: { light.state.effect ?? "" }, set: { model.recordRoomUse(device.room); model.hue?.setEffect($0.isEmpty ? nil : $0, for: light.id) })) {
                     Text("None").tag("")
                     ForEach(light.capabilities.effects, id: \.self) { Text($0.capitalized).tag($0) }
                 }.controlSize(.small).disabled(!enabled || !device.isOn)
@@ -214,6 +232,13 @@ private struct HomeDeviceRow: View {
                     ForEach(DeviceKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
                 }.pickerStyle(.segmented)
             }
+            Picker("Smart order", selection: Binding(get: { model.placements[device.id]?.attention ?? .automatic }, set: { model.setAttention($0, device: device) })) {
+                ForEach(DeviceAttention.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+            }.controlSize(.small)
+            Text(RoomAttention.isBackground(device, placement: model.placements[device.id])
+                 ? "Background: being on won’t raise this room. Your manual use still counts."
+                 : "Everyday lights can raise their room while on. Automatic learns room order from your manual use.")
+                .font(.caption2).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             Text(device.provider.rawValue).font(.caption2).foregroundStyle(.tertiary)
             if let kasaDevice = device.kasaDevice {
                 DisclosureGroup("Schedules", isExpanded: Binding(get: { model.schedules.contains(device.id) }, set: {

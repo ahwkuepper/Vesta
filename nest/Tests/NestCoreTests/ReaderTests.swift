@@ -219,6 +219,11 @@ private var controllableDevice: String {
         .replacingOccurrences(of: #""mode":"HEAT""#, with: #""mode":"HEAT","availableModes":["HEAT","OFF"]"#)
 }
 
+private var singleDevice: String {
+    let root = try! JSONSerialization.jsonObject(with: Data(controllableDevice.utf8)) as! [String: Any]
+    return String(data: try! JSONSerialization.data(withJSONObject: (root["devices"] as! [[String: Any]])[0]), encoding: .utf8)!
+}
+
 @Test func readerControlIsExplicitlyOptIn() async throws {
     let http = HTTP([])
     let reader = NestReader(store: Store(config()), http: http)
@@ -228,12 +233,14 @@ private var controllableDevice: String {
 
 @Test func thermostatWriteChecksFreshStateAndReadsBack() async throws {
     var c = config(); c.refreshToken = "synthetic-refresh"
-    let http = HTTP([response(renewed), response(controllableDevice), response("{}"), response(controllableDevice)])
+    let http = HTTP([response(renewed), response(controllableDevice), response("{}"), response(singleDevice)])
     let reader = NestReader(store: Store(c), http: http, allowsControl: true)
     _ = try await reader.execute(.heat(20), resource: controlResource)
     let requests = await http.requests
     #expect(requests.map(\.httpMethod) == ["POST", "GET", "POST", "GET"])
     #expect(requests[2].url?.path.hasSuffix(":executeCommand") == true)
+    #expect(requests[3].url?.path == "/v1/" + controlResource)
+    #expect(GoogleHTTPClient.permits(requests[3]))
     #expect(!GoogleHTTPClient.permits(requests[2]))
     #expect(NestCommand.permits(requests[2]))
     let data = try #require(requests[2].httpBody)
@@ -273,4 +280,34 @@ private var controllableDevice: String {
     #expect(!NestCommand.permits(request))
     #expect(!NestCommand.validResource("enterprises/" + project + "/devices/../../other", project: project))
     #expect(!NestCommand.validResource("enterprises/" + project + "/devices/x?token=y", project: project))
+}
+
+@Test func rateLimitBlocksFurtherRequestsWithoutReplayingCommand() async throws {
+    var c = config(); c.refreshToken = "synthetic-refresh"
+    let http = HTTP([response(renewed), response(controllableDevice),
+                     HTTPResponse(status: 429, body: Data("{}".utf8), retryAfter: 120)])
+    let reader = NestReader(store: Store(c), http: http, now: { moment }, allowsControl: true)
+    await #expect(throws: ReaderError.rateLimited) { try await reader.execute(.heat(20), resource: controlResource) }
+    #expect(await reader.retryNotBefore == moment.addingTimeInterval(120))
+    await #expect(throws: ReaderError.rateLimited) { try await reader.read() }
+    await #expect(throws: ReaderError.rateLimited) { try await reader.execute(.heat(21), resource: controlResource) }
+    #expect(await http.requests.count == 3)
+}
+
+@Test func singleDeviceReadRejectsWrongDeviceAndUnsafePaths() throws {
+    let readings = try Readings.decode(Data(controllableDevice.utf8), fetchedAt: moment)
+    #expect(throws: ReaderError.malformedResponse) {
+        try readings.replacingDevice(Data(singleDevice.utf8), resource: "other", fetchedAt: moment)
+    }
+    for suffix in ["a:executeCommand", "a/extra", "a?token=x", "a#fragment", "%2E%2E"] {
+        let request = URLRequest(url: URL(string: "https://smartdevicemanagement.googleapis.com/v1/enterprises/" + project + "/devices/" + suffix)!)
+        #expect(!GoogleHTTPClient.permits(request))
+    }
+}
+
+@Test func retryAfterHandlesSecondsDatesAndInvalidValues() {
+    #expect(GoogleHTTPClient.retryDelay("120") == 120)
+    #expect(GoogleHTTPClient.retryDelay("nan") == nil)
+    #expect(GoogleHTTPClient.retryDelay("-1") == nil)
+    #expect(GoogleHTTPClient.retryDelay("Wed, 21 Oct 2015 07:28:00 GMT", now: Date(timeIntervalSince1970: 1445412420)) == 60)
 }
