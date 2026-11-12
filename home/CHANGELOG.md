@@ -1,5 +1,13 @@
 # Vesta Home changes
 
+## 0.2.5 — room layout refinement
+
+- Consistent room-section insets, header height and separation before controls.
+  Room symbols and titles align with device swatches and names.
+- Scene chips have internal breathing room for their glass edges; the redundant
+  vendor caption is removed, with scene context retained for accessibility.
+- Offline previews now include scenes and collapsed-room layouts.
+
 ## 0.2.4 — single-device room controls
 
 - Single-device rooms show power only on the device row while expanded, and on

@@ -97,8 +97,10 @@ struct HomeView: View {
             }.font(.subheadline).padding(8).background(.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 8))
         }.padding(.horizontal, 18).padding(.vertical, 12)
     }
+    // Each room owns its spacing: a 24pt header, 12pt separation from its
+    // content, and equal outer insets. Rows retain the shared device surface.
     private var rooms: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 0) {
             if model.devices.isEmpty {
                 VStack(spacing: 8) {
                     if model.hueRefreshing || model.kasa.refreshing { ProgressView().controlSize(.small); Text("Finding your lights…") }
@@ -110,40 +112,44 @@ struct HomeView: View {
             ForEach(model.orderedRooms, id: \.self) { room in
                 let devices = model.visible(in: room)
                 if !devices.isEmpty {
-                    HStack(spacing: 7) {
-                        Button {
-                            if model.collapsed.contains(room) { model.collapsed.remove(room) } else { model.collapsed.insert(room) }
-                        } label: {
-                            HStack(spacing: 7) {
-                                Image(systemName: roomSymbol(room)).frame(width: 17)
-                                Text(room).font(.roomName).lineLimit(1)
-                                Image(systemName: model.collapsed.contains(room) ? "chevron.right" : "chevron.down").font(.caption2)
-                            }.foregroundStyle(.secondary)
-                        }.buttonStyle(.plain).accessibilityLabel("\(model.collapsed.contains(room) ? "Expand" : "Collapse") \(room)")
-                        Spacer()
-                        let roomDevices = model.devices.filter { $0.room == room }
-                        let lights = roomDevices.filter { $0.kind == .light && $0.reachable }
-                        if roomDevices.count == 1, let device = roomDevices.first {
-                            // The device row owns power while expanded; keep it available when folded.
-                            if model.collapsed.contains(room) {
-                                Toggle("\(device.name) power", isOn: Binding(get: { device.isOn }, set: { model.power(device, $0) }))
+                    VStack(alignment: .leading, spacing: 0) {
+                        HStack(spacing: 10) {
+                            Button {
+                                if model.collapsed.contains(room) { model.collapsed.remove(room) } else { model.collapsed.insert(room) }
+                            } label: {
+                                HStack(spacing: 10) {
+                                    Image(systemName: roomSymbol(room)).font(.roomIcon).frame(width: 22)
+                                    Text(room).font(.roomName).lineLimit(1)
+                                    Image(systemName: model.collapsed.contains(room) ? "chevron.right" : "chevron.down").font(.caption2)
+                                }.foregroundStyle(.secondary).frame(minHeight: 24).contentShape(Rectangle())
+                            }.buttonStyle(.plain).accessibilityLabel("\(model.collapsed.contains(room) ? "Expand" : "Collapse") \(room)")
+                            Spacer()
+                            let roomDevices = model.devices.filter { $0.room == room }
+                            let lights = roomDevices.filter { $0.kind == .light && $0.reachable }
+                            if roomDevices.count == 1, let device = roomDevices.first {
+                                // The device row owns power while expanded; keep it available when folded.
+                                if model.collapsed.contains(room) {
+                                    Toggle("\(device.name) power", isOn: Binding(get: { device.isOn }, set: { model.power(device, $0) }))
+                                        .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                                        .disabled(!device.reachable || (device.kasaDevice.map { model.kasa.busy.contains($0.id) } ?? false))
+                                }
+                            } else if !lights.isEmpty {
+                                Toggle("All lights in \(room)", isOn: Binding(get: { lights.contains { $0.isOn } }, set: { model.allLights($0, room: room) }))
                                     .labelsHidden().toggleStyle(.switch).controlSize(.mini)
-                                    .disabled(!device.reachable || (device.kasaDevice.map { model.kasa.busy.contains($0.id) } ?? false))
                             }
-                        } else if !lights.isEmpty {
-                            Toggle("All lights in \(room)", isOn: Binding(get: { lights.contains { $0.isOn } }, set: { model.allLights($0, room: room) }))
-                                .labelsHidden().toggleStyle(.switch).controlSize(.mini)
+                        }.frame(minHeight: 24).padding(.horizontal, 18)
+                        if !model.collapsed.contains(room) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                if room == "Unassigned" {
+                                    Text("Open a device to choose its room.").font(.caption).foregroundStyle(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18)
+                                }
+                                hueScenes(room)
+                                ForEach(devices) { HomeDeviceRow(model: model, device: $0) }
+                            }.padding(.top, 12)
                         }
-                    }.padding(.horizontal, 18).padding(.top, 8)
-                    if !model.collapsed.contains(room) {
-                        if room == "Unassigned" {
-                            Text("Open a device to choose its room.").font(.caption).foregroundStyle(.secondary)
-                                .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18)
-                        }
-                        hueScenes(room)
-                        ForEach(devices) { HomeDeviceRow(model: model, device: $0) }
-                    }
-                    Divider().padding(.horizontal, 18).padding(.top, 4)
+                    }.padding(.vertical, 12)
+                    Divider().padding(.horizontal, 18)
                 }
             }
             Text("Hue & Kasa · Local network   /   Nest · Google")
@@ -156,11 +162,12 @@ struct HomeView: View {
                 HStack(spacing: 6) {
                     ForEach(hue.scenes(in: hueRoom)) { scene in
                         Button { model.recordRoomUse(room); hue.recall(scene) } label: { Text(scene.name).chipMetrics().chipStyle(isActive: scene.isActive) }
-                            .buttonStyle(.plain).help("Hue scene: \(scene.name)")
+                            .buttonStyle(.plain).help("Apply \(scene.name) in \(room)")
+                            .accessibilityLabel("\(scene.name), \(room) scene")
                     }
-                }.chipGroup().padding(.horizontal, 18)
-            }.scrollIndicators(.hidden).padding(.vertical, 4)
-            Text("Hue scenes").font(.caption2).foregroundStyle(.tertiary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18)
+                }.chipGroup().padding(.horizontal, 18).padding(.vertical, 6)
+            }.scrollIndicators(.hidden)
+                .accessibilityElement(children: .contain).accessibilityLabel("Scenes for \(room)")
         }
     }
     private func roomSymbol(_ name: String) -> String {

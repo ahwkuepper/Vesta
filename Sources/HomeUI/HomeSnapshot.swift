@@ -13,7 +13,10 @@ public enum HomeSnapshot {
         let model = HomeModel(preferences: nil, kasa: KasaHome(demo: true))
         let lamp = Light(id: UUID(), name: "Sofa lamp", state: .init(isOn: true, brightness: 0.72, color: .temperature(mireds: 370)), connection: .ready)
         let room = Room(id: UUID(), name: "Living room", lightIDs: [lamp.id])
-        model.hue = LightStore(transport: SimulatedTransport(), initialLights: [lamp], initialRooms: [room])
+        let scenes = ["Evening", "Reading", "Candlelight", "Tropical twilight"].map {
+            RoomScene(id: UUID(), name: $0, roomID: room.id)
+        }
+        model.hue = LightStore(transport: SimulatedTransport(), initialLights: [lamp], initialRooms: [room], initialScenes: scenes)
         for device in model.devices where device.provider == .kasa {
             let room = device.name == "Charger" ? "Garage" : device.name == "Reading lamp" ? "Office"
                 : device.name.contains("Porch") ? "Porch" : "Living room"
@@ -24,8 +27,9 @@ public enum HomeSnapshot {
         let data = Data(#"{"devices":[{"type":"sdm.devices.types.THERMOSTAT","parentRelations":[{"displayName":"Hallway"}],"traits":{"sdm.devices.traits.Temperature":{"ambientTemperatureCelsius":21.5},"sdm.devices.traits.Humidity":{"ambientHumidityPercent":56},"sdm.devices.traits.Connectivity":{"status":"ONLINE"},"sdm.devices.traits.ThermostatMode":{"mode":"HEAT","availableModes":["HEAT","OFF"]},"sdm.devices.traits.ThermostatHvac":{"status":"OFF"},"sdm.devices.traits.ThermostatEco":{"mode":"OFF"},"sdm.devices.traits.ThermostatTemperatureSetpoint":{"heatCelsius":20}}}]}"#.utf8)
         model.nestReadings = try Readings.decode(data, fetchedAt: Date())
         for dark in [false, true] {
-            for state in ["rooms", "expanded", "connections"] {
+            for state in ["rooms", "collapsed", "expanded", "connections"] {
                 model.settings = state == "connections"; model.climateExpanded = state == "expanded"
+                model.collapsed = state == "collapsed" ? Set(model.rooms.filter { $0 != "Living room" }) : []
                 model.search = state == "expanded" ? "Sofa" : ""
                 model.expanded = state == "expanded" ? ["hue:" + lamp.id.uuidString] : []
                 let size = CGSize(width: 330, height: 750)
