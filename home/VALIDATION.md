@@ -36,9 +36,9 @@ The source and automated checks can run without accessing a home or Keychain.
   the `test` CI job; it does not require a human or code-owner approval. A maintainer
   must review the candidate; CODEOWNERS alone does not provide that enforcement.
 - Final public DMG signature, Gatekeeper, contents and checksum: pending.
-- Updated Nest consent-site policy: prepared in
-  [draft PR #1](https://github.com/ahwkuepper/vesta-nest-site/pull/1).
-  Live deployment awaits explicit owner approval for that separate destination.
+- Nest consent-site policy: owner-approved [PR #1](https://github.com/ahwkuepper/vesta-nest-site/pull/1)
+  merged as `161b4644`. Pages deployment succeeded; both live HTML pages were
+  fetched and matched the reviewed files exactly on November 11, 2026.
 
 ## Required human/hardware check before an installer release
 

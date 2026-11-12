@@ -16,8 +16,9 @@ The personal `package-home.sh` path does not provide public build provenance.
    It runs both Swift test variants, Nest tests and publication checks, builds the
    unsigned universal executable, and writes `release/home-vVERSION.txt`.
 4. Commit the manifest in the snapshot. Record actual results in
-   `home/VALIDATION.md`. Complete its fresh-install and device checks; do not mark
-   a test passed from a screenshot or from a simulated transport.
+   `home/VALIDATION.md`. Source can be promoted after review and CI. Complete
+   fresh-install and device checks using the final signed candidate before making
+   an installer release; do not mark hardware checks passed from simulations.
 
 The binary is built at `/private/tmp/vesta-home-verify/VestaHome`, by the same
 `tools/build-home-unsigned.sh` in preparation, CI and verification. Preparation
