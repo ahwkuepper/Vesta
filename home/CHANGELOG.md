@@ -1,5 +1,13 @@
 # Vesta Home changes
 
+## 0.2.6 — Hue connection recovery
+
+- Hue Bridge failures report local-network or pairing problems instead of a
+  Bluetooth warning. A successful refresh clears stale availability and restores
+  the event subscription after a failed startup.
+- Added regressions for startup recovery, later disconnect/reconnect, revoked
+  pairing and a single live event subscription across repeated refreshes.
+
 ## 0.2.5 — room layout refinement
 
 - Consistent room-section insets, header height and separation before controls.

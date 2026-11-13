@@ -84,6 +84,8 @@ public enum TransportAvailability: Sendable, Equatable {
     /// bridge, so the stored key no longer exists. Distinct from `unauthorized`,
     /// which is macOS withholding Bluetooth permission.
     case credentialsRejected
+    /// Local-network bridge failure, independent of the Mac's Bluetooth adapter.
+    case bridgeUnavailable
 
     public var message: String? {
         switch self {
@@ -92,6 +94,8 @@ public enum TransportAvailability: Sendable, Equatable {
         case .unauthorized:       "Vesta needs Bluetooth access to find your lights."
         case .poweredOff:         "Bluetooth is turned off."
         case .unsupported:        "Bluetooth is currently unavailable. Try reconnecting."
+        case .bridgeUnavailable:
+            "Hue Bridge is unavailable. Check home Wi-Fi and the bridge’s power."
         case .credentialsRejected:
             "The Bridge no longer recognises Vesta. Pair it again to reconnect."
         }

@@ -27,24 +27,27 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
     static let maximumResponseBytes = 8 * 1024 * 1024
 
     public var credentials: BridgeCredentials { state.withLock { $0 } }
-    private var handler: (@MainActor (TransportEvent) -> Void)?
-    private var eventTask: Task<Void, Never>?
+    @MainActor private var handler: (@MainActor (TransportEvent) -> Void)?
+    @MainActor private var eventTask: Task<Void, Never>?
 
-    public init(credentials: BridgeCredentials) {
-        self.state = Box(credentials)
-        super.init()
+    public convenience init(credentials: BridgeCredentials) {
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = 10
-        // Bounded: `timeoutIntervalForRequest` only measures inactivity, so a host
-        // dribbling one byte every nine seconds holds a request open forever.
+        // A finite resource deadline also bounds a host that dribbles response bytes.
         config.timeoutIntervalForResource = 30
-        session = URLSession(configuration: config, delegate: self, delegateQueue: nil)
-
         let streamConfig = URLSessionConfiguration.ephemeral
         streamConfig.timeoutIntervalForRequest = 0
         streamConfig.timeoutIntervalForResource = .infinity
-        streamSession = URLSession(configuration: streamConfig, delegate: self,
-                                   delegateQueue: nil)
+        self.init(credentials: credentials, configuration: config, streamConfiguration: streamConfig)
+    }
+
+    // Internal injection lets recovery tests exercise the real transport without hardware.
+    init(credentials: BridgeCredentials, configuration: URLSessionConfiguration,
+         streamConfiguration: URLSessionConfiguration) {
+        self.state = Box(credentials)
+        super.init()
+        session = URLSession(configuration: configuration, delegate: self, delegateQueue: nil)
+        streamSession = URLSession(configuration: streamConfiguration, delegate: self, delegateQueue: nil)
     }
 
     /// The address is stored data, not a literal, so building a URL from it can
@@ -203,29 +206,45 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
     // MARK: - LightTransport
 
     public func start(handler: @escaping @MainActor (TransportEvent) -> Void) async {
-        self.handler = handler
+        await MainActor.run { self.handler = handler }
         do {
             let lights = try await fetchLights()
-            await emit(.availabilityChanged(.ready))
             for light in lights {
                 await emit(.discovered(light))
                 await emit(.stateChanged(id: light.id, delta: LightStateDelta(light.state)))
             }
-            startEventStream()
         } catch {
-            await emit(.availabilityChanged(.unsupported))
+            // fetchLights publishes a provider-specific failure, including revoked pairing.
         }
     }
 
     public func stop() async {
-        eventTask?.cancel()
-        eventTask = nil
+        await MainActor.run {
+            handler = nil
+            eventTask?.cancel()
+            eventTask = nil
+        }
         session.invalidateAndCancel()
+        streamSession.invalidateAndCancel()
     }
 
     /// Every light the bridge knows about, with its current state.
     public func fetchLights() async throws -> [Light] {
-        try await loadLights(attempts: 4)
+        do {
+            let lights = try await loadLights(attempts: 4)
+            await MainActor.run {
+                // A successful refresh must clear an earlier startup/network failure.
+                handler?(.availabilityChanged(.ready))
+                if handler != nil, eventTask == nil { startEventStream() }
+            }
+            return lights
+        } catch {
+            if !Task.isCancelled {
+                await emit(.availabilityChanged(error as? TransportError == .unauthorized
+                                                ? .credentialsRejected : .bridgeUnavailable))
+            }
+            throw error
+        }
     }
 
     func loadLights(attempts: Int) async throws -> [Light] {
@@ -299,7 +318,7 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
 
     /// Server-sent events, so state stays correct when someone uses the Hue app or
     /// a wall dimmer. This is what BLE `notify` was for, without the bond.
-    private func startEventStream() {
+    @MainActor private func startEventStream() {
         guard let url = endpoint("eventstream/clip/v2") else { return }
         var streamRequest = request(url)
         streamRequest.setValue("text/event-stream", forHTTPHeaderField: "Accept")
@@ -340,9 +359,8 @@ public final class BridgeTransport: NSObject, LightTransport, @unchecked Sendabl
         }
     }
 
-    private func emit(_ event: TransportEvent) async {
-        guard let handler else { return }
-        await MainActor.run { handler(event) }
+    @MainActor private func emit(_ event: TransportEvent) {
+        handler?(event)
     }
 }
 
