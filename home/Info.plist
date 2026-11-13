@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleDisplayName</key><string>Vesta Home</string>
+<key>CFBundleExecutable</key><string>VestaHome</string>
+<key>CFBundleIdentifier</key><string>io.github.ahwkuepper.VestaHome</string>
+<key>CFBundleName</key><string>Vesta Home</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleShortVersionString</key><string>0.2.6</string>
+<key>CFBundleVersion</key><string>9</string>
+<key>LSMinimumSystemVersion</key><string>14.0</string>
+<key>LSUIElement</key><true/>
+<key>NSLocalNetworkUsageDescription</key><string>Vesta Home connects to your Hue Bridge and Kasa lights and plugs on your home network.</string>
+<key>NSBonjourServices</key><array><string>_hue._tcp</string></array>
+<key>NSAppTransportSecurity</key><dict>
+<key>NSAllowsLocalNetworking</key><true/>
+<!-- Kasa KLAP requires HTTP to numeric LAN addresses. Its transport rejects
+     nonlocal targets, proxies and redirects. Nest independently requires HTTPS. -->
+<key>NSAllowsArbitraryLoads</key><true/>
+</dict>
+</dict></plist>

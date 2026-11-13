@@ -11,3 +11,11 @@
 /Info.plist             @ahwkuepper
 /Sources/VestaBridge/    @ahwkuepper
 /Sources/VestaDiagnostics/ @ahwkuepper
+/Sources/KasaTransport/  @ahwkuepper
+/nest/Sources/NestCore/  @ahwkuepper
+/Sources/HomeUI/         @ahwkuepper
+/home/entitlements.plist @ahwkuepper
+/home/Info.plist         @ahwkuepper
+/home/PRIVACY.md         @ahwkuepper
+/nest/site/             @ahwkuepper
+/Package.swift          @ahwkuepper

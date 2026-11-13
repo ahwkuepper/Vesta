@@ -1,0 +1,33 @@
+Vesta Home — beta installation
+
+Requires macOS 14 or later. Supports Apple silicon and Intel.
+
+1. Quit any existing Vesta Home copy. Drag Vesta Home to Applications.
+2. Open it from Applications. Click the house in the menu bar.
+3. Allow Local Network access and requested Keychain access.
+4. Open … > Connections & rooms. Connect each provider you use:
+   - Hue: Pair bridge, then press your Hue Bridge's link button when prompted.
+   - Kasa: Find devices; use Account to sign in if a device requires it.
+   - Nest (optional): follow the setup guide below. It requires your own Google
+     Device Access project and OAuth web-client JSON. It uses Google's cloud.
+
+Setup: https://github.com/ahwkuepper/Vesta/blob/main/home/SETUP.md
+Privacy: see PRIVACY.md in this disk image.
+Validation: https://github.com/ahwkuepper/Vesta/blob/main/home/VALIDATION.md
+
+On another Mac, configure credentials separately. Reuse your existing Google
+project and transfer its OAuth client JSON privately, separately from the installer.
+Choose Authorize and paste the complete returned Google URL in Home to finish.
+Credentials are saved in each Mac's Keychain, not included in this installer.
+
+Use Rooms > Export layout / Import layout to transfer room assignments, plug
+classifications and units. Layout contains room names and device identifiers,
+but no credentials. Imported assignments replace matching local assignments;
+other assignments remain. Settings do not synchronize automatically.
+
+If no Keychain prompt appears, wake and unlock the Mac, then reopen Home's menu.
+Updating a copy signed with a different identity may require Keychain access again.
+Future installers can replace Home in Applications while retaining settings.
+
+Public beta availability and remaining hardware checks are recorded in the
+validation page. A private installer is not evidence of a public release.

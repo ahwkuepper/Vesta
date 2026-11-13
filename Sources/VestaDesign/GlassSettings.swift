@@ -3,6 +3,6 @@
 
 /// Custom glass surfaces need a compositor capture. The snapshot renderer turns
 /// these off when it must draw in-process; native sliders remain system controls.
-enum GlassSettings {
-    nonisolated(unsafe) static var isEnabled = true
+public enum GlassSettings {
+    nonisolated(unsafe) public static var isEnabled = true
 }

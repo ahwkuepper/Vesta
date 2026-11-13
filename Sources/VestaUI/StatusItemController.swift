@@ -3,6 +3,7 @@
 
 import AppKit
 import SwiftUI
+import VestaDesign
 import VestaKit
 
 /// Owns the menu-bar item and its popover.

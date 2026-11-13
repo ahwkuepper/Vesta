@@ -2,6 +2,13 @@
 
 A macOS menu-bar controller for Philips Hue that talks only to your lights.
 
+Looking for the combined app? **[Vesta Home](home/README.md)** brings Hue and Kasa
+lights, plugs and optional Nest climate controls together by room. It is being
+prepared for a public beta. See [setup](home/SETUP.md), [privacy](home/PRIVACY.md)
+and [validation status](home/VALIDATION.md). Home's Nest integration uses Google's
+cloud and your own Google project. The local-only description below is for the
+original Hue app.
+
 Smart-home software normally asks you to choose: a house full of useful technology,
 or your privacy. Vesta does not make that trade. It speaks to the bridge on your own
 network and to nothing else — no account, no cloud, no telemetry, no crash
@@ -9,8 +16,8 @@ reporting, no update check, no analytics.
 
 Nothing about your home leaves your network. Including the fact that you are home.
 
-It has **no third-party dependencies at all**. Apple frameworks only, so there is no
-supply chain to audit and no package that can be compromised on your behalf.
+It has **no third-party application dependencies**. It uses Apple frameworks;
+the compiler, operating system and release tooling remain part of its supply chain.
 
 The connection is pinned to your bridge's public key, recorded when you paired by
 pressing the button on the device. A bridge ID is public — it is broadcast in mDNS
@@ -23,6 +30,18 @@ reviewed transport, or if a remote package or binary target is declared. The che
 are structural — they make egress conspicuous in a diff rather than impossible — and
 [CONSTITUTION.md](CONSTITUTION.md) records what each one does and does not cover.
 See also [SECURITY.md](SECURITY.md).
+
+The repository also includes an optional [Nest command-line reader](nest/README.md).
+That separately built companion uses Google's cloud API and Keychain-backed OAuth;
+it is not linked into Vesta or Vesta Kasa, and the local-only claims above apply to
+the Vesta app, not the Nest reader.
+
+An interactive [Vesta Home layout preview](home-preview/README.md) compares three
+ways to combine lights, appliances and climate controls. It uses sample data only.
+
+The working [Vesta Home app](home/README.md) uses the selected room-based layout
+and connects Hue, Kasa and Nest. It is a separate, opt-in app: Nest uses Google's
+cloud and supports thermostat controls. The original Vesta app remains local-only.
 
 Vesta is an independent project. It is not made, certified, endorsed or supported by
 Signify or Philips Hue; "Philips Hue" and "Hue" are their trademarks, used here only

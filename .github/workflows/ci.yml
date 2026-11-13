@@ -26,6 +26,19 @@ jobs:
       # repoint v4 at new code, which then runs inside this workflow.
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
 
+      - name: Select pinned Xcode
+        run: |
+          WANT=$(cat .xcode-build-version)
+          for APP in /Applications/Xcode*.app; do
+            HAVE=$(/usr/libexec/PlistBuddy -c 'Print :ProductBuildVersion' "$APP/Contents/version.plist" 2>/dev/null || true)
+            if [ "$HAVE" = "$WANT" ]; then
+              echo "DEVELOPER_DIR=$APP/Contents/Developer" >> "$GITHUB_ENV"
+              exit 0
+            fi
+          done
+          echo "::error::Pinned Xcode $WANT is unavailable."
+          exit 1
+
       - name: Show toolchain
         run: swift --version
 
@@ -34,8 +47,7 @@ jobs:
       # Liquid Glass needs the macOS 26 SDK: `glassEffect` has to exist at compile
       # time, and `if #available` does not help with that — so the glass paths are
       # behind `#if VESTA_GLASS`, which Package.swift defines for Xcode 26+ unless VESTA_CLASSIC=1.
-      # Runner images lag Xcode, so detect rather than assume. When a macOS 26
-      # image ships, bump `runs-on` above and this starts covering glass by itself.
+      # Select the pinned Xcode above and report its SDK explicitly.
       - name: Detect SDK
         id: sdk
         run: |
@@ -68,5 +80,20 @@ jobs:
       - name: Check security boundaries
         run: ./tools/check-boundaries.sh
 
+      - name: Test standalone Nest reader
+        run: ./nest/test.sh
+
       - name: Check docs carry no real identifiers
-        run: ./tools/check-no-secrets.sh
+        run: |
+          python3 -B tools/test_public_tree.py
+          ./tools/check-no-secrets.sh
+
+      - name: Test classic variant
+        if: steps.sdk.outputs.glass == 'yes'
+        run: VESTA_CLASSIC=1 swift test
+
+      - name: Check release script syntax
+        run: |
+          for SCRIPT in tools/release-home.sh tools/build-home-unsigned.sh tools/package-home.sh tools/prepare-public-snapshot.sh; do
+            bash -n "$SCRIPT"
+          done

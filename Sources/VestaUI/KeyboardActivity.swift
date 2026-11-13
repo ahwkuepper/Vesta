@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import AppKit
 
 /// Whether the person is currently driving the app from the keyboard.

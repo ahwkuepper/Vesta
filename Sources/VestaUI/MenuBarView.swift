@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import SwiftUI
+import VestaDesign
 import VestaKit
 import VestaDiagnostics
 
@@ -20,8 +21,6 @@ struct MenuBarView: View {
     /// The popover's window, used to measure how much room there is beneath the
     /// status item before deciding how tall to be.
     @State private var window: NSWindow?
-    /// Natural height of the list, so a short list does not leave dead space below.
-    @State private var measuredContent: Double = 0
 
     private var store: LightStore { model.store }
 
@@ -42,7 +41,7 @@ struct MenuBarView: View {
                 errorBanner(error)
             }
         }
-        .frame(width: 330)
+        .frame(width: MenuMetrics.width)
         .dynamicTypeClamped()
         .background(WindowReader { window = $0 })
         .task {
@@ -56,25 +55,8 @@ struct MenuBarView: View {
     // MARK: - Header
 
     private var header: some View {
-        HStack(spacing: 10) {
-            Image(systemName: store.anyLightOn ? "lightbulb.fill" : "lightbulb")
-                .font(.appGlyph)
-                .foregroundStyle(store.anyLightOn ? .yellow : .secondary)
-                .frame(width: 30, height: 34)
-                .background(.yellow.opacity(store.anyLightOn ? 0.10 : 0),
-                            in: RoundedRectangle(cornerRadius: 10))
-                .contentTransition(.symbolEffect(.replace))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Vesta").font(.appTitle)
-                Text(summary)
-                    .font(.appSummary)
-                    .foregroundStyle(.secondary)
-                    .contentTransition(.numericText())
-            }
-
-            Spacer()
-
+        MenuHeader(title: "Vesta", summary: summary,
+                   symbol: store.anyLightOn ? "lightbulb.fill" : "lightbulb", isOn: store.anyLightOn) {
             settingsMenu
 
             // One control for the thing people open this app to do.
@@ -87,8 +69,6 @@ struct MenuBarView: View {
             .disabled(store.commandableLights.isEmpty)
             .accessibilityLabel("All lights")
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
     }
 
     private var summary: String {
@@ -102,36 +82,12 @@ struct MenuBarView: View {
 
     // MARK: - Body states
 
-    /// How tall the popover may be, measured from the screen alone.
-    ///
-    /// Must not consult the popover's own frame: position would feed height, height
-    /// would resize the popover, and NSPopover would reposition it again.
-    private var maxAvailableHeight: Double {
-        let screen = window?.screen ?? NSScreen.main
-        let visible = screen?.visibleFrame.height ?? 900
-        // Caps the scroll view, so reserve what sits around it: the header, the
-        // divider and NSPopover's own padding. Only bites when there are enough
-        // lamps to fill the screen.
-        return max(260, visible - Self.chromeAllowance)
-    }
-
-    /// Header (~56) + divider + NSPopover padding, plus a little margin.
-    private static let chromeAllowance: Double = 90
-
-    /// The popover is exactly as tall as its contents, up to the room available.
-    ///
-    /// There is no resize handle. Menu-bar popovers on macOS are not resizable, and
-    /// sizing to content means a handful of lamps needs no scrolling.
-    private var contentHeight: Double {
-        guard measuredContent > 0 else { return maxAvailableHeight }
-        // Offscreen renders have no screen to be constrained by; clipping them to a
-        // notional screen height truncates the shot mid-row.
-        return rendersFullHeight ? measuredContent
-                                 : min(measuredContent, maxAvailableHeight)
+    private var maxAvailableHeight: CGFloat {
+        MenuMetrics.maximumBodyHeight(screenHeight: (window?.screen ?? NSScreen.main)?.visibleFrame.height ?? 900)
     }
 
     private var content: some View {
-        ScrollView {
+        PopoverList(maximumHeight: maxAvailableHeight, fullHeight: rendersFullHeight) {
             VStack(alignment: .leading, spacing: 10) {
                 ForEach(Array(store.rooms.enumerated()), id: \.element.id) { index, room in
                     if index > 0 {
@@ -160,16 +116,7 @@ struct MenuBarView: View {
                 if store.allLightsNeedPairing { pairingHint }
             }
             .padding(.vertical, 8)
-            .background(
-                GeometryReader { geometry in
-                    Color.clear.preference(key: ContentHeightKey.self,
-                                           value: geometry.size.height)
-                }
-            )
         }
-        .onPreferenceChange(ContentHeightKey.self) { measuredContent = $0 }
-        .frame(height: contentHeight, alignment: .top)
-        .scrollBounceBehavior(.basedOnSize)
     }
 
     /// Says what went wrong, at the bottom where it cannot displace the controls.
@@ -349,13 +296,5 @@ struct MenuBarView: View {
         .frame(width: 20)
         .help("Settings")
         .accessibilityLabel("Settings")
-    }
-}
-
-/// Reports the natural height of the popover's content.
-private struct ContentHeightKey: PreferenceKey {
-    static let defaultValue: Double = 0
-    static func reduce(value: inout Double, nextValue: () -> Double) {
-        value = max(value, nextValue())
     }
 }

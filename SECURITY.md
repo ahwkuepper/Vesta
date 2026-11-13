@@ -1,109 +1,88 @@
 # Security
 
-Vesta controls devices in someone's home from a machine on their network. Its code is
-therefore a supply chain into that home. This is what holds today, and what must
-change before it accepts device modules from strangers.
+Vesta controls devices in a home. A malicious contribution or compromised release
+could reach those devices and the credentials available to the application.
+This document distinguishes the original Hue app from Vesta Home and its providers.
 
-## Threat model
+## Scope and boundaries
 
-| | Threat | Why it matters here |
+| Component | Network and authentication | Important limits |
 |---|---|---|
-| T1 | A malicious or compromised contribution | Device modules are the obvious vector: plausible code, privileged reach |
-| T2 | A compromised dependency | A transitive package runs with the app's full entitlements |
-| T3 | A hostile device on the LAN | It can impersonate a bridge, or answer discovery first |
-| T4 | Another app on the same Mac | Wants the app keys, which grant control of the home |
-| T5 | A stolen or unlocked machine | Keychain items, paired credentials |
-| T6 | The user disclosing something by accident | Diagnostics, screenshots, an issue report, the repo itself |
+| Hue / original Vesta | Local bridge HTTPS; public-key pin recorded during physical pairing; scoped Keychain application key | Pairing is a trust-on-first-use step. A compromised paired bridge remains trusted. |
+| Kasa | LAN discovery and legacy XOR or authenticated KLAP; derived account keys in a separate Keychain service | Legacy XOR offers no device authentication. Similar models can use different firmware protocols. |
+| Nest / Home | Google HTTPS OAuth and SDM; system TLS validation; scoped Keychain configuration and refresh token | Cloud integration; Google grant can control devices. User-configured project, no shared public client. |
+| Nest CLI | Same Google service and credential store, read-only default transport | Read-only code does not reduce the scope of the OAuth grant. |
+| Layout preview | Synthetic in-memory devices | No transports or credential access. |
 
-Out of scope: a compromised bridge or bulb firmware, and anyone with physical access
-to the light switch.
+Home explicitly enables five Nest thermostat commands. Each command is validated
+against a fresh authorized device list and current mode/connectivity, then sent
+once and read back. A failed response does not automatically replay a command.
+The app limits targets to 10–32°C with a 0.5°C minimum heat/cool separation;
+provider/device constraints may be stricter. Stale readings disable controls.
 
-## What holds today
+The apps have no third-party application dependencies, runtime plugin loader,
+developer backend, telemetry, crash upload or automatic updater. Apple frameworks,
+the compiler, OS and release tools remain trusted dependencies. The sandbox cannot
+express "LAN only": transport validation and source review enforce that intent.
+Kasa requires HTTP to numeric local addresses. Nest separately restricts HTTPS
+methods/hosts/paths, rejects redirects and bounds response size and request time.
 
-Verified, not asserted — `tools/check-boundaries.sh` runs these in CI:
+Home's sandbox allows network client/server access (including discovery) and
+user-selected file read/write for setup and layout transfer. It has no camera or
+microphone entitlement. Entitlements differ from the original Hue app; inspect
+`home/entitlements.plist` for the Home build. Browser consent and documentation links
+are explicit user actions, not app telemetry.
 
-- **No third-party dependencies at all.** Apple frameworks only; there is no
-  `Package.resolved` because nothing remote is ever resolved. T2 is closed by having
-  no supply chain rather than by auditing one.
-- **No outbound traffic to anywhere but the paired device.** The only URLs
-  constructed anywhere are `https://<address>` where the address came from pairing.
-  There is no analytics, no crash reporting, no update check.
-- **Network access is confined to one module.** Only `Sources/VestaBridge` may use
-  `URLSession` or `Network`; the check fails the build otherwise.
-- **No runtime code loading.** No `dlopen`, no plug-in bundles. A loaded bundle would
-  inherit the app's sandbox, entitlements and Keychain access.
-- **Sandboxed with two entitlements**: `device.bluetooth` and `network.client`. No
-  file access, no camera, no microphone, no inbound server.
-- **Credentials in the Keychain**, never on disk, `AfterFirstUnlockThisDeviceOnly`.
-  No part of the application key is ever written to a log, a diagnostic or the CLI
-  log file — not even a prefix.
-- **TLS pinned to the paired bridge's public key.** The bridge's SPKI is hashed and
-  stored during the pairing button press, and every later connection must present
-  the same key. The certificate's common name is checked first as a cheap filter,
-  but it decides nothing: a bridge ID is published in mDNS and returned
-  unauthenticated by `/api/config`, so a certificate bearing one is trivial to mint.
-  Only the key pair is unforgeable, which is what closes T3.
-- **Pairing refuses non-local addresses.** A bridge address must be RFC1918,
-  link-local, loopback or a `.local` name, so the app cannot be talked into pairing
-  with a host on the internet.
-- **Device responses are treated as untrusted input.** No `try!` or `as!` in
-  `Sources`; decoding is total and a malformed payload degrades rather than crashes.
-- **Diagnostics disclose nothing identifying.** No light, room or scene names; the
-  bridge ID and app key appear only as fingerprints (T6).
+## Credentials, stored data and diagnostics
 
-## What must change before third-party device modules
+Hue, Kasa and Nest have separate Keychain stores. They are source-level boundaries,
+not a defense against malicious code running within Home's process. Home can reuse
+the companion apps' entries after macOS grants access; deleting a shared entry can
+affect those apps. Credentials are excluded from source snapshots and installers.
+User-downloaded OAuth JSON and returned URL files need their own protection/deletion.
 
-Each item below closes a hole that opens the moment someone else's module ships.
+Kasa device metadata and last-known state, room assignments and preferences persist
+locally. Layout exports include room names and identifiers. Do not treat them or
+screenshots as safe to publish. The Hue diagnostic report intentionally omits
+identifying names and addresses; general screenshots, CLI readings and user-supplied
+error attachments are not that diagnostic report. See [Home privacy](home/PRIVACY.md).
 
-1. **A single egress choke point.** `network.client` permits *any* outbound
-   connection; the sandbox cannot express "LAN only". Introduce
-   `LocalNetworkSession`, the only way any module may make a request, which refuses
-   destinations outside RFC1918/link-local. The boundary check then enforces that no
-   module constructs its own session. Today this is convention; it needs to be code.
-2. **Declared capabilities per module.** A module states what it needs — LAN TCP,
-   BLE, mDNS — and the host refuses to initialise one that asks for more than its
-   declaration. Makes over-reach visible in a diff.
-3. **Per-module credential scoping.** Keychain items are namespaced
-   `io.github.ahwkuepper.Vesta.<module>` and a module is handed only its own. A Kasa module must
-   not be able to read the Hue app key.
-4. **A device-authentication statement per module.** Hue pins a certificate. Kasa's
-   legacy local protocol has none: a UDP broadcast on port 9999 enumerates devices
-   with no credential, and the plugs return the home's latitude and longitude,
-   `deviceId`, `oemId` and MAC to anyone on the LAN. Every module must document what
-   it can and cannot prove about the device it talks to, the UI must not imply more,
-   and **fields like location must never reach a log or a diagnostics report**.
-5. **Repository controls.** Protected `main`, required review, `CODEOWNERS` over
-   `tools/`, `Package.swift`, entitlements and any transport; signed commits; no
-   `pull_request_target`; no CI secrets exposed to fork PRs; secret scanning.
-   Published snapshots reach `main` only through a CI-gated pull request from
-   `staging` — see `tools/publish.sh`.
-6. **A review checklist for new modules**, covering: no new dependencies, no new
-   entitlements, all I/O through the choke point, no telemetry, total decoding,
-   bounded response sizes and timeouts, credentials scoped, and a stated
-   authentication model.
-7. **Release integrity.** Signed and notarised builds, published checksums, and
-   instructions to rebuild from source and compare. What holds today:
+## Automated checks and their limits
 
-   - Signing and notarisation run on the maintainer's machine. The Developer ID
-     private key exists in one login keychain and is never uploaded anywhere,
-     including to CI. **This repository holds no secrets of any kind**, so a
-     compromise of the repository or of GitHub Actions cannot produce a signed
-     Vesta.
-   - The signing key and the notarisation key are held separately, so an attacker
-     needs two compromises, and `xcrun notarytool history` remains a tripwire that
-     fires on the first.
-   - CI rebuilds the unsigned binary from the tag and records its hash in a public
-     transparency log via OIDC — no stored credential. `tools/release.sh sign`
-     refuses to sign a binary that attestation does not match.
-   - Each release publishes a manifest: commit, unsigned hash, dmg hash, Xcode
-     build, deployment target, architectures. After a key compromise this is the
-     only way a user can tell their copy from an attacker's.
+- `tools/check-boundaries.sh` makes unexpected network APIs, host literals,
+  dependencies, dynamic loading and target layering visible. These structural
+  checks supplement review; they are not a complete data-flow or sandbox proof.
+- `tools/check-no-secrets.sh` scans tracked and nonignored untracked text for
+  credential formats and home identifiers. It reports locations without printing
+  matches. Binary assets require reviewed SHA-256 entries. Tests exercise untracked
+  leaks and redaction. Patterns cannot detect every secret or private fact.
+- Test transports exercise malformed input, failed commands and credential errors.
+  They do not establish live device compatibility. [Home validation](home/VALIDATION.md)
+  records hardware and fresh-install gaps explicitly.
 
-   *Gap:* nothing on a user's Mac requires any of this. The Homebrew cask's pinned
-   checksum is the only place a hash is enforced rather than published, and it binds
-   only people who install that way. This is transparency, not enforcement.
+Before publishing, make a source snapshot with no private ancestry. Never push a
+private tag: it would expose its parent history. The source scanner does not clear
+old commits. `tools/prepare-public-snapshot.sh` creates a local candidate;
+`tools/publish.sh` parents published snapshots only on public history.
+
+## Release integrity
+
+Developer ID and notarization credentials remain on the maintainer's Mac, outside
+CI. Home uses a pinned Xcode and a fixed build path. Its release workflow checks a
+manifest hash and produces GitHub provenance for the unsigned binary. The Home
+packager requires a matching attestation bound to the public tag, commit and Home
+workflow, with no bypass. The original Hue release script is separate and still
+has a manual attestation override; do not use it for Home.
+
+A signature identifies the signer; notarization is not a code audit. Unsigned-build
+reproducibility does not itself authenticate a downloaded DMG. Check its checksum,
+signature and Gatekeeper result separately. See [Home releasing](home/RELEASING.md).
+CODEOWNERS identifies reviewers, but required review/CI must also be configured in
+GitHub branch protection. No fork PR should receive signing credentials.
 
 ## Reporting
 
-Open a GitHub issue for anything non-sensitive. For a vulnerability, use GitHub's
-private security advisory on the repository rather than a public issue.
+For vulnerabilities, use the repository's private security advisory. Use public
+issues only for non-sensitive reports. Do not attach tokens, OAuth client files,
+authorization URLs, home identifiers or unredacted device data. Firmware compromise,
+physical device access and an already-compromised Mac are outside the app's defenses.
